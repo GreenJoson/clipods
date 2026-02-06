@@ -7,6 +7,7 @@
 | _README.md | 文档 | 本目录说明 |
 | App.css | 核心 | 应用基础样式 |
 | App.tsx | 核心 | 应用主界面 |
+| index.css | 核心 | 全局样式基线与排版 |
 | main.tsx | 核心 | 前端入口挂载 |
 | vite-env.d.ts | 支撑 | Vite 类型声明 |
 | assets | 资源 | 前端静态资源 |

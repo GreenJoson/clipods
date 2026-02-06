@@ -1,32 +1,87 @@
 /**
  * @input  依赖：无
- * @output 导出：主题变量（颜色与基础令牌）
+ * @output 导出：主题变量（颜色、间距、圆角、阴影、渐变）
  * @pos    全局主题变量中心
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
 :root {
+  --font-display: "Fraunces", "Times New Roman", serif;
+  --font-body: "Manrope", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+
   --color-text-primary: #0f0f0f;
+  --color-text-muted: #4b5563;
+  --color-text-inverse: #f8fafc;
   --color-input-text: #0f0f0f;
   --color-bg-primary: #f6f6f6;
-  --color-link: #646cff;
-  --color-link-hover: #535bf2;
+  --color-bg-canvas: #eef1f6;
   --color-surface: #ffffff;
-  --color-shadow: rgba(0, 0, 0, 0.2);
-  --color-button-border-hover: #396cd8;
-  --color-button-active-bg: #e8e8e8;
+  --color-surface-elevated: #ffffff;
+  --color-border: rgba(15, 23, 42, 0.14);
+  --color-link: #2d63d8;
+  --color-link-hover: #2149a8;
+  --color-accent: #2b59c3;
+  --color-accent-soft: #d7e4ff;
+  --color-shadow: rgba(15, 23, 42, 0.2);
+  --color-button-border-hover: #2b59c3;
+  --color-button-active-bg: #e2e8f0;
   --color-logo-vite: #747bff;
   --color-logo-react: #61dafb;
   --color-logo-tauri: #24c8db;
+
+  --space-2xs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 4rem;
+
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+
+  --shadow-sm: 0 4px 12px rgba(15, 23, 42, 0.08);
+  --shadow-md: 0 12px 28px rgba(15, 23, 42, 0.12);
+  --shadow-lg: 0 20px 45px rgba(15, 23, 42, 0.16);
+  --shadow-glow: 0 0 0 1px rgba(43, 89, 195, 0.25);
+
+  --gradient-base: radial-gradient(
+    120% 120% at 0% 0%,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(242, 245, 252, 0.9) 45%,
+    rgba(228, 234, 246, 0.95) 100%
+  );
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-text-primary: #f6f6f6;
-    --color-input-text: #ffffff;
-    --color-bg-primary: #2f2f2f;
-    --color-link-hover: #24c8db;
-    --color-surface: #0f0f0f98;
-    --color-button-active-bg: #0f0f0f69;
+    --color-text-primary: #f8fafc;
+    --color-text-muted: #cbd5f5;
+    --color-text-inverse: #0f172a;
+    --color-input-text: #f8fafc;
+    --color-bg-primary: #0f172a;
+    --color-bg-canvas: #111827;
+    --color-surface: rgba(15, 23, 42, 0.82);
+    --color-surface-elevated: rgba(30, 41, 59, 0.9);
+    --color-border: rgba(148, 163, 184, 0.25);
+    --color-link-hover: #7dd3fc;
+    --color-accent: #7aa2ff;
+    --color-accent-soft: rgba(122, 162, 255, 0.2);
+    --color-button-active-bg: rgba(15, 23, 42, 0.6);
+    --color-shadow: rgba(15, 23, 42, 0.6);
+    --shadow-sm: 0 6px 16px rgba(15, 23, 42, 0.45);
+    --shadow-md: 0 16px 32px rgba(15, 23, 42, 0.55);
+    --shadow-lg: 0 28px 60px rgba(15, 23, 42, 0.65);
+    --gradient-base: radial-gradient(
+      120% 120% at 0% 0%,
+      rgba(30, 41, 59, 0.95) 0%,
+      rgba(15, 23, 42, 0.92) 45%,
+      rgba(2, 6, 23, 0.95) 100%
+    );
   }
 }
