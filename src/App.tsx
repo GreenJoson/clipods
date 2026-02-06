@@ -1,3 +1,10 @@
+/**
+ * @input  依赖：React, @tauri-apps/api/core, App.css
+ * @output 导出：App 组件
+ * @pos    应用主界面与交互入口
+ *
+ * ⚠️ 一旦本文件被更新，务必更新以上注释
+ */
 import { useState } from "react";
 import reactLogo from "./assets/react.svg";
 import { invoke } from "@tauri-apps/api/core";

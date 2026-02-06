@@ -1,0 +1,32 @@
+/**
+ * @input  依赖：无
+ * @output 导出：主题变量（颜色与基础令牌）
+ * @pos    全局主题变量中心
+ *
+ * ⚠️ 一旦本文件被更新，务必更新以上注释
+ */
+:root {
+  --color-text-primary: #0f0f0f;
+  --color-input-text: #0f0f0f;
+  --color-bg-primary: #f6f6f6;
+  --color-link: #646cff;
+  --color-link-hover: #535bf2;
+  --color-surface: #ffffff;
+  --color-shadow: rgba(0, 0, 0, 0.2);
+  --color-button-border-hover: #396cd8;
+  --color-button-active-bg: #e8e8e8;
+  --color-logo-vite: #747bff;
+  --color-logo-react: #61dafb;
+  --color-logo-tauri: #24c8db;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-text-primary: #f6f6f6;
+    --color-input-text: #ffffff;
+    --color-bg-primary: #2f2f2f;
+    --color-link-hover: #24c8db;
+    --color-surface: #0f0f0f98;
+    --color-button-active-bg: #0f0f0f69;
+  }
+}

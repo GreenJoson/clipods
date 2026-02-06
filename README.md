@@ -1,7 +1,8 @@
-# Tauri + React + Typescript
+# codex-launcher
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+Tauri + React launcher scaffold.
 
-## Recommended IDE Setup
+## Documentation Rules
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+- Any structural change (new/removed/moved files or folders) must update the relevant `_README.md` in each affected directory.
+- Any change to functionality, architecture, or coding conventions must update the related sub-docs in the same change set.

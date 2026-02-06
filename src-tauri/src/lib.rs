@@ -1,3 +1,10 @@
+/*
+ * @input  依赖：tauri, tauri_plugin_opener
+ * @output 导出：greet 命令, run 启动函数
+ * @pos    Tauri 后端命令与启动入口
+ *
+ * ⚠️ 一旦本文件被更新，务必更新以上注释
+ */
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
