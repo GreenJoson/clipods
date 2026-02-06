@@ -1,0 +1,194 @@
+/**
+ * @input  依赖：配置类型、session 模型、TOML 工具、路径工具
+ * @output 导出：configService API 与序列化函数
+ * @pos    配置加载与保存的核心服务
+ *
+ * ⚠️ 一旦本文件被更新，务必更新以上注释
+ */
+import type { AppConfig, IdeProfile, TerminalProfile } from "../types/config";
+import { normalizeSession } from "../models/session";
+import { buildConfigFilePath } from "../utils/paths";
+import { parseToml, stringifyToml, type TomlData } from "../utils/toml";
+
+export interface ConfigFileClient {
+  readTextFile: (path: string) => Promise<string>;
+  writeTextFile: (path: string, contents: string) => Promise<void>;
+  ensureDir: (path: string) => Promise<void>;
+}
+
+export interface ConfigPathProvider {
+  getAppConfigDir: () => Promise<string>;
+}
+
+export interface ConfigService {
+  load: () => Promise<AppConfig>;
+  save: (config: AppConfig) => Promise<void>;
+  getConfigPath: () => Promise<string>;
+}
+
+const DEFAULT_CONFIG: AppConfig = {
+  version: 1,
+  sessions: [],
+  terminalProfiles: [],
+  ideProfiles: [],
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const readString = (value: unknown, fallback: string): string =>
+  typeof value === "string" ? value : fallback;
+
+const readStringOptional = (value: unknown): string | undefined =>
+  typeof value === "string" && value.length > 0 ? value : undefined;
+
+const readNumber = (value: unknown, fallback: number): number =>
+  typeof value === "number" && Number.isFinite(value) ? value : fallback;
+
+const readStringArray = (value: unknown): string[] =>
+  Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === "string")
+    : [];
+
+const readStringRecord = (
+  value: unknown
+): Record<string, string> | undefined => {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const entries = Object.entries(value).filter(
+    (entry): entry is [string, string] => typeof entry[1] === "string"
+  );
+
+  if (entries.length === 0) {
+    return undefined;
+  }
+
+  return Object.fromEntries(entries);
+};
+
+const normalizeTerminalProfile = (value: unknown): TerminalProfile | null => {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const id = readStringOptional(value.id);
+  const name = readStringOptional(value.name);
+  const command = readStringOptional(value.command);
+
+  if (!id || !name || !command) {
+    return null;
+  }
+
+  return {
+    id,
+    name,
+    command,
+    args: readStringArray(value.args),
+    env: readStringRecord(value.env),
+  };
+};
+
+const normalizeIdeProfile = (value: unknown): IdeProfile | null => {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const id = readStringOptional(value.id);
+  const name = readStringOptional(value.name);
+  const command = readStringOptional(value.command);
+
+  if (!id || !name || !command) {
+    return null;
+  }
+
+  return {
+    id,
+    name,
+    command,
+    args: readStringArray(value.args),
+  };
+};
+
+const readArray = <T>(
+  value: unknown,
+  normalize: (entry: unknown) => T | null
+): T[] =>
+  Array.isArray(value)
+    ? value
+        .map(normalize)
+        .filter((entry): entry is T => entry !== null)
+    : [];
+
+const stripUndefined = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    return value.map(stripUndefined);
+  }
+
+  if (!isRecord(value)) {
+    return value;
+  }
+
+  const result: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (entry === undefined) {
+      continue;
+    }
+
+    const normalized = stripUndefined(entry);
+    if (normalized === undefined) {
+      continue;
+    }
+
+    result[key] = normalized;
+  }
+
+  return result;
+};
+
+const normalizeConfig = (value: TomlData): AppConfig => ({
+  version: readNumber(value.version, DEFAULT_CONFIG.version),
+  sessions: readArray(value.sessions, normalizeSession),
+  terminalProfiles: readArray(value.terminalProfiles, normalizeTerminalProfile),
+  ideProfiles: readArray(value.ideProfiles, normalizeIdeProfile),
+  defaultSessionId: readStringOptional(value.defaultSessionId),
+});
+
+const sanitizeConfig = (config: AppConfig): TomlData =>
+  stripUndefined(config) as TomlData;
+
+export const parseConfig = (source: string): AppConfig =>
+  normalizeConfig(parseToml(source));
+
+export const serializeConfig = (config: AppConfig): string =>
+  stringifyToml(sanitizeConfig(config));
+
+export const createConfigService = (
+  fileClient: ConfigFileClient,
+  pathProvider: ConfigPathProvider
+): ConfigService => {
+  const getConfigPath = async (): Promise<string> => {
+    const appConfigDir = await pathProvider.getAppConfigDir();
+    return buildConfigFilePath(appConfigDir);
+  };
+
+  const load = async (): Promise<AppConfig> => {
+    const configPath = await getConfigPath();
+    const contents = await fileClient.readTextFile(configPath);
+    return parseConfig(contents);
+  };
+
+  const save = async (config: AppConfig): Promise<void> => {
+    const appConfigDir = await pathProvider.getAppConfigDir();
+    await fileClient.ensureDir(appConfigDir);
+    const configPath = buildConfigFilePath(appConfigDir);
+    await fileClient.writeTextFile(configPath, serializeConfig(config));
+  };
+
+  return {
+    load,
+    save,
+    getConfigPath,
+  };
+};
