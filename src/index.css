@@ -1,11 +1,11 @@
 /**
- * @input  Dependencies: ./styles/theme.css, Google Fonts
- * @output Exports: global base styles, typography, motion helpers
- * @pos    Global layout and typography baseline
+ * @input  依赖：./styles/fonts.css, ./styles/theme.css
+ * @output 导出：全局基础样式, 字体基线, 动效辅助类
+ * @pos    全局样式入口
  *
- * WARNING: Update this header if the file changes.
+ * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700&display=swap");
+@import "./styles/fonts.css";
 @import "./styles/theme.css";
 
 :root {

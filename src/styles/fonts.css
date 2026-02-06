@@ -1,0 +1,22 @@
+/**
+ * @input  依赖：macOS 系统字体
+ * @output 导出：Display, Body 字体族
+ * @pos    本地字体定义
+ *
+ * ⚠️ 一旦本文件被更新，务必更新以上注释
+ */
+@font-face {
+  font-family: "Display";
+  src: local("SF Pro Display"), local("Avenir Next"), local("Avenir");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Body";
+  src: local("SF Pro Text"), local("Avenir Next"), local("Helvetica Neue");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}

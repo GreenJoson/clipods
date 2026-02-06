@@ -6,8 +6,8 @@
  * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
 :root {
-  --font-display: "Fraunces", "Times New Roman", serif;
-  --font-body: "Manrope", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Display", "Avenir Next", "Avenir", "Times New Roman", serif;
+  --font-body: "Body", "Avenir Next", "Helvetica Neue", Arial, sans-serif;
 
   --color-text-primary: #0f0f0f;
   --color-text-muted: #4b5563;
