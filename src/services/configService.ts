@@ -33,6 +33,13 @@ const DEFAULT_CONFIG: AppConfig = {
   ideProfiles: [],
 };
 
+const createDefaultConfig = (): AppConfig => ({
+  version: DEFAULT_CONFIG.version,
+  sessions: [],
+  terminalProfiles: [],
+  ideProfiles: [],
+});
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
@@ -123,7 +130,7 @@ const readArray = <T>(
 
 const stripUndefined = (value: unknown): unknown => {
   if (Array.isArray(value)) {
-    return value.map(stripUndefined);
+    return value.map(stripUndefined).filter((entry) => entry !== undefined);
   }
 
   if (!isRecord(value)) {
@@ -174,9 +181,16 @@ export const createConfigService = (
   };
 
   const load = async (): Promise<AppConfig> => {
-    const configPath = await getConfigPath();
-    const contents = await fileClient.readTextFile(configPath);
-    return parseConfig(contents);
+    try {
+      const configPath = await getConfigPath();
+      const contents = await fileClient.readTextFile(configPath);
+      if (contents.trim().length === 0) {
+        return createDefaultConfig();
+      }
+      return parseConfig(contents);
+    } catch (error) {
+      return createDefaultConfig();
+    }
   };
 
   const save = async (config: AppConfig): Promise<void> => {

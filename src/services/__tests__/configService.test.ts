@@ -6,7 +6,7 @@
  * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
 import { describe, expect, it } from "vitest";
-import { parseConfig, serializeConfig } from "../configService";
+import { createConfigService, parseConfig, serializeConfig } from "../configService";
 import type { AppConfig } from "../../types/config";
 
 const sampleConfig: AppConfig = {
@@ -52,5 +52,29 @@ describe("configService", () => {
     const parsed = parseConfig(serialized);
 
     expect(parsed).toEqual(sampleConfig);
+  });
+
+  it("returns default config when load fails", async () => {
+    const service = createConfigService(
+      {
+        readTextFile: async () => {
+          throw new Error("missing");
+        },
+        writeTextFile: async () => undefined,
+        ensureDir: async () => undefined,
+      },
+      {
+        getAppConfigDir: async () => "/tmp",
+      }
+    );
+
+    const config = await service.load();
+
+    expect(config).toEqual({
+      version: 1,
+      sessions: [],
+      terminalProfiles: [],
+      ideProfiles: [],
+    });
   });
 });
