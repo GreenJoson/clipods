@@ -57,31 +57,3 @@
     rgba(228, 234, 246, 0.95) 100%
   );
 }
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-text-primary: #f8fafc;
-    --color-text-muted: #cbd5f5;
-    --color-text-inverse: #0f172a;
-    --color-input-text: #f8fafc;
-    --color-bg-primary: #0f172a;
-    --color-bg-canvas: #111827;
-    --color-surface: rgba(15, 23, 42, 0.82);
-    --color-surface-elevated: rgba(30, 41, 59, 0.9);
-    --color-border: rgba(148, 163, 184, 0.25);
-    --color-link-hover: #7dd3fc;
-    --color-accent: #7aa2ff;
-    --color-accent-soft: rgba(122, 162, 255, 0.2);
-    --color-button-active-bg: rgba(15, 23, 42, 0.6);
-    --color-shadow: rgba(15, 23, 42, 0.6);
-    --shadow-sm: 0 6px 16px rgba(15, 23, 42, 0.45);
-    --shadow-md: 0 16px 32px rgba(15, 23, 42, 0.55);
-    --shadow-lg: 0 28px 60px rgba(15, 23, 42, 0.65);
-    --gradient-base: radial-gradient(
-      120% 120% at 0% 0%,
-      rgba(30, 41, 59, 0.95) 0%,
-      rgba(15, 23, 42, 0.92) 45%,
-      rgba(2, 6, 23, 0.95) 100%
-    );
-  }
-}
