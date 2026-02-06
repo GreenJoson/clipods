@@ -2,8 +2,6 @@
  * @input  依赖：无
  * @output 导出：主题变量（颜色、间距、圆角、阴影、渐变）
  * @pos    全局主题变量中心
- *
- * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
 :root {
   --font-display: "Fraunces", "Times New Roman", serif;

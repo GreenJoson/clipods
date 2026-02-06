@@ -2,8 +2,6 @@
  * @input  依赖：./styles/theme.css
  * @output 导出：App 视图样式
  * @pos    应用基础样式与布局定义
- *
- * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
 @import "./styles/theme.css";
 

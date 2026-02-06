@@ -2,8 +2,6 @@
  * @input  依赖：React, ReactDOM, App, ./index.css
  * @output 导出：无（渲染入口）
  * @pos    前端应用启动与挂载
- *
- * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
 import React from "react";
 import ReactDOM from "react-dom/client";
