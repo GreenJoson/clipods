@@ -1,7 +1,7 @@
 /*
  * @input  依赖：codex_launcher_lib::run
  * @output 导出：应用主进程入口
- * @pos    Tauri 主进程启动
+ * @pos    Tauri 主进程启动与插件入口
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
