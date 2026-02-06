@@ -23,6 +23,7 @@ fn launch_terminal(working_dir: Option<String>) -> Result<(), String> {
     let mut args = vec!["-a".to_string(), "Terminal".to_string()];
     if let Some(dir) = working_dir {
         let normalized = normalize_path(&dir)?;
+        args.push("--".to_string());
         args.push(path_to_string(&normalized)?);
     }
     run_open(&args)
@@ -37,6 +38,7 @@ fn launch_ide(app: Option<String>, target_path: Option<String>) -> Result<(), St
     }
     if let Some(path) = target_path {
         let normalized = normalize_path(&path)?;
+        args.push("--".to_string());
         args.push(path_to_string(&normalized)?);
     }
     if args.is_empty() {
@@ -59,7 +61,11 @@ fn ensure_codex_home(path: Option<String>) -> Result<String, String> {
 #[tauri::command]
 fn reveal_path(path: String) -> Result<(), String> {
     let resolved = normalize_path(&path)?;
-    let args = vec!["-R".to_string(), path_to_string(&resolved)?];
+    let args = vec![
+        "-R".to_string(),
+        "--".to_string(),
+        path_to_string(&resolved)?,
+    ];
     run_open(&args)
 }
 
