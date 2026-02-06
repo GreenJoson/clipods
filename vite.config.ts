@@ -2,6 +2,8 @@
  * @input  依赖：Vite, @vitejs/plugin-react, 环境变量 TAURI_DEV_HOST
  * @output 导出：Vite 配置
  * @pos    Vite 构建与开发配置入口
+ *
+ * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
