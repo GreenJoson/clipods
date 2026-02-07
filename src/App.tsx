@@ -1,5 +1,5 @@
 /**
- * @input  依赖：React, Tauri API, 配置服务, UI 组件
+ * @input  依赖：React, Tauri API, 配置服务, UI 组件, 文件系统工具
  * @output 导出：App 组件
  * @pos    启动器 UI 主入口与状态协调
  *
@@ -362,8 +362,10 @@ const App = () => {
 
   const handleRevealConfig = async () => {
     try {
+      await configService.save(config);
       const configPath = await configService.getConfigPath();
       await invoke("reveal_path", { path: configPath });
+      setStatus("配置目录已打开");
     } catch (error) {
       setStatus("打开配置失败");
     }
