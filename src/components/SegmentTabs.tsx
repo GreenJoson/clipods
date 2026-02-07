@@ -24,13 +24,18 @@ const SegmentTabs = ({ items, activeId, onChange }: SegmentTabsProps) => (
   <div className="segment-tabs" role="tablist">
     {items.map((item) => {
       const isActive = item.id === activeId;
+      const tabId = `${item.id}-tab`;
+      const panelId = `${item.id}-panel`;
       return (
         <button
           key={item.id}
+          id={tabId}
           type="button"
           className={`segment-tab ${isActive ? "is-active" : ""}`}
           role="tab"
           aria-selected={isActive}
+          aria-controls={panelId}
+          tabIndex={isActive ? 0 : -1}
           onClick={() => onChange(item.id)}
         >
           {item.icon}

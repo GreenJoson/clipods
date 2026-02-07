@@ -103,77 +103,109 @@ const App = () => {
   ];
 
   const handleCreateSession = async () => {
-    const id = `session-${Date.now()}`;
-    const next: AppConfig = {
-      ...config,
-      sessions: [
-        ...config.sessions,
-        {
-          id,
-          name: `新会话 ${config.sessions.length + 1}`,
-          codexHome: "~/.codex",
-          loginType: "chatgpt",
-        },
-      ],
-      defaultSessionId: config.defaultSessionId ?? id,
-    };
-    setConfig(next);
-    await configService.save(next);
-    setStatus("已创建会话");
+    try {
+      const id = `session-${Date.now()}`;
+      const next: AppConfig = {
+        ...config,
+        sessions: [
+          ...config.sessions,
+          {
+            id,
+            name: `新会话 ${config.sessions.length + 1}`,
+            codexHome: "~/.codex",
+            loginType: "chatgpt",
+          },
+        ],
+        defaultSessionId: config.defaultSessionId ?? id,
+      };
+      setConfig(next);
+      await configService.save(next);
+      setStatus("已创建会话");
+    } catch (error) {
+      setStatus("创建会话失败");
+    }
   };
 
   const handleLaunchTerminal = async (session: SessionConfig) => {
-    await invoke("launch_terminal", { workingDir: session.codexHome });
-    setStatus("终端已打开");
+    try {
+      await invoke("launch_terminal", { workingDir: session.codexHome });
+      setStatus("终端已打开");
+    } catch (error) {
+      setStatus("终端启动失败");
+    }
   };
 
   const handleLaunchIde = async (session: SessionConfig, profile?: IdeProfile) => {
-    await invoke("launch_ide", {
-      app: profile?.command ?? "Visual Studio Code",
-      targetPath: session.codexHome,
-    });
-    setStatus("IDE 已打开");
+    try {
+      await invoke("launch_ide", {
+        app: profile?.command ?? "Visual Studio Code",
+        targetPath: session.codexHome,
+      });
+      setStatus("IDE 已打开");
+    } catch (error) {
+      setStatus("IDE 启动失败");
+    }
   };
 
   const handleEnsureHome = async (session: SessionConfig) => {
-    await invoke("ensure_codex_home", { path: session.codexHome });
-    setStatus("登录准备完成");
+    try {
+      await invoke("ensure_codex_home", { path: session.codexHome });
+      setStatus("登录准备完成");
+    } catch (error) {
+      setStatus("登录准备失败");
+    }
   };
 
   const handleRevealHome = async (session: SessionConfig) => {
-    await invoke("reveal_path", { path: session.codexHome });
+    try {
+      await invoke("reveal_path", { path: session.codexHome });
+    } catch (error) {
+      setStatus("打开目录失败");
+    }
   };
 
   const handleRevealConfig = async () => {
-    const configPath = await configService.getConfigPath();
-    await invoke("reveal_path", { path: configPath });
+    try {
+      const configPath = await configService.getConfigPath();
+      await invoke("reveal_path", { path: configPath });
+    } catch (error) {
+      setStatus("打开配置失败");
+    }
   };
 
   const handleImport = async () => {
-    const selected = await open({
-      filters: [{ name: "TOML", extensions: ["toml"] }],
-      multiple: false,
-    });
-    if (!selected || Array.isArray(selected)) {
-      return;
+    try {
+      const selected = await open({
+        filters: [{ name: "TOML", extensions: ["toml"] }],
+        multiple: false,
+      });
+      if (!selected || Array.isArray(selected)) {
+        return;
+      }
+      const contents = await readTextFile(selected);
+      const parsed = parseConfig(contents);
+      setConfig(parsed);
+      await configService.save(parsed);
+      setStatus("导入完成");
+    } catch (error) {
+      setStatus("导入失败");
     }
-    const contents = await readTextFile(selected);
-    const parsed = parseConfig(contents);
-    setConfig(parsed);
-    await configService.save(parsed);
-    setStatus("导入完成");
   };
 
   const handleExport = async () => {
-    const target = await save({
-      defaultPath: "codex-launcher.toml",
-      filters: [{ name: "TOML", extensions: ["toml"] }],
-    });
-    if (!target) {
-      return;
+    try {
+      const target = await save({
+        defaultPath: "codex-launcher.toml",
+        filters: [{ name: "TOML", extensions: ["toml"] }],
+      });
+      if (!target) {
+        return;
+      }
+      await writeTextFile(target, serializeConfig(config));
+      setStatus("导出完成");
+    } catch (error) {
+      setStatus("导出失败");
     }
-    await writeTextFile(target, serializeConfig(config));
-    setStatus("导出完成");
   };
 
   return (
@@ -195,7 +227,12 @@ const App = () => {
         </div>
       </header>
 
-      <main className="content">
+      <main
+        className="content"
+        id={`${activeTab}-panel`}
+        role="tabpanel"
+        aria-labelledby={`${activeTab}-tab`}
+      >
         <Toolbar
           searchValue={searchValue}
           onSearchChange={setSearchValue}
