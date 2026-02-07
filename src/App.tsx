@@ -13,11 +13,19 @@ import { mkdir, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import "./App.css";
 import SegmentTabs from "./components/SegmentTabs";
 import Toolbar from "./components/Toolbar";
+import ProfileToolbar from "./components/ProfileToolbar";
 import EmptyState from "./components/EmptyState";
+import ProfileEditor, { type ProfileKind } from "./components/ProfileEditor";
+import ProfileCard from "./components/ProfileCard";
 import SessionEditor from "./components/SessionEditor";
 import SessionBoard from "./blocks/SessionBoard";
 import { createConfigService, parseConfig, serializeConfig } from "./services/configService";
-import type { AppConfig, IdeProfile, SessionConfig } from "./types/config";
+import type {
+  AppConfig,
+  IdeProfile,
+  SessionConfig,
+  TerminalProfile,
+} from "./types/config";
 
 const EMPTY_CONFIG: AppConfig = {
   version: 1,
@@ -36,6 +44,11 @@ const App = () => {
   const [editingSession, setEditingSession] = useState<SessionConfig | null>(
     null
   );
+  const [profileEditorOpen, setProfileEditorOpen] = useState(false);
+  const [profileKind, setProfileKind] = useState<ProfileKind>("terminal");
+  const [editingProfile, setEditingProfile] = useState<
+    TerminalProfile | IdeProfile | null
+  >(null);
 
   const fileClient = useMemo(
     () => ({
@@ -100,6 +113,30 @@ const App = () => {
         session.codexHome.toLowerCase().includes(keyword)
     );
   }, [config.sessions, searchValue]);
+
+  const filteredTerminalProfiles = useMemo(() => {
+    if (!searchValue) {
+      return config.terminalProfiles;
+    }
+    const keyword = searchValue.toLowerCase();
+    return config.terminalProfiles.filter(
+      (profile) =>
+        profile.name.toLowerCase().includes(keyword) ||
+        profile.command.toLowerCase().includes(keyword)
+    );
+  }, [config.terminalProfiles, searchValue]);
+
+  const filteredIdeProfiles = useMemo(() => {
+    if (!searchValue) {
+      return config.ideProfiles;
+    }
+    const keyword = searchValue.toLowerCase();
+    return config.ideProfiles.filter(
+      (profile) =>
+        profile.name.toLowerCase().includes(keyword) ||
+        profile.command.toLowerCase().includes(keyword)
+    );
+  }, [config.ideProfiles, searchValue]);
 
   const tabs = [
     { id: "sessions", label: "会话", count: config.sessions.length },
@@ -173,6 +210,103 @@ const App = () => {
       setStatus("会话已删除");
     } catch (error) {
       setStatus("删除失败");
+    }
+  };
+
+  const handleCreateProfile = (kind: ProfileKind) => {
+    const id = `${kind}-${Date.now()}`;
+    const profile =
+      kind === "terminal"
+        ? {
+            id,
+            name: `新终端 ${config.terminalProfiles.length + 1}`,
+            command: "Terminal",
+            args: [],
+          }
+        : {
+            id,
+            name: `新 IDE ${config.ideProfiles.length + 1}`,
+            command: "Visual Studio Code",
+            args: [],
+          };
+    setProfileKind(kind);
+    setEditingProfile(profile);
+    setProfileEditorOpen(true);
+  };
+
+  const handleEditProfile = (
+    kind: ProfileKind,
+    profile: TerminalProfile | IdeProfile
+  ) => {
+    setProfileKind(kind);
+    setEditingProfile(profile);
+    setProfileEditorOpen(true);
+  };
+
+  const handleSaveProfile = async (profile: TerminalProfile | IdeProfile) => {
+    const isTerminal = profileKind === "terminal";
+    const list = isTerminal ? config.terminalProfiles : config.ideProfiles;
+    const exists = list.some((entry) => entry.id === profile.id);
+    const nextList = exists
+      ? list.map((entry) => (entry.id === profile.id ? profile : entry))
+      : [...list, profile];
+
+    const next: AppConfig = {
+      ...config,
+      terminalProfiles: isTerminal ? (nextList as TerminalProfile[]) : config.terminalProfiles,
+      ideProfiles: isTerminal ? config.ideProfiles : (nextList as IdeProfile[]),
+    };
+
+    try {
+      setConfig(next);
+      await configService.save(next);
+      setProfileEditorOpen(false);
+      setEditingProfile(null);
+      setStatus(exists ? "配置已更新" : "配置已创建");
+    } catch (error) {
+      setStatus("配置保存失败");
+    }
+  };
+
+  const handleDeleteProfile = async (
+    kind: ProfileKind,
+    profileId: string
+  ) => {
+    const isTerminal = kind === "terminal";
+    const nextTerminalProfiles = isTerminal
+      ? config.terminalProfiles.filter((profile) => profile.id !== profileId)
+      : config.terminalProfiles;
+    const nextIdeProfiles = isTerminal
+      ? config.ideProfiles
+      : config.ideProfiles.filter((profile) => profile.id !== profileId);
+
+    const nextSessions = config.sessions.map((session) => ({
+      ...session,
+      terminalProfileId:
+        isTerminal && session.terminalProfileId === profileId
+          ? undefined
+          : session.terminalProfileId,
+      ideProfileId:
+        !isTerminal && session.ideProfileId === profileId
+          ? undefined
+          : session.ideProfileId,
+    }));
+
+    const next: AppConfig = {
+      ...config,
+      sessions: nextSessions,
+      terminalProfiles: nextTerminalProfiles,
+      ideProfiles: nextIdeProfiles,
+    };
+
+    try {
+      setConfig(next);
+      await configService.save(next);
+      setProfileEditorOpen(false);
+      setEditingProfile(null);
+      setStatus("配置已删除");
+    } catch (error) {
+      setStatus("配置删除失败");
     }
   };
 
@@ -283,16 +417,41 @@ const App = () => {
         role="tabpanel"
         aria-labelledby={`${activeTab}-tab`}
       >
-        <Toolbar
-          searchValue={searchValue}
-          onSearchChange={setSearchValue}
-          totalCount={config.sessions.length}
-          filteredCount={filteredSessions.length}
-          onImport={handleImport}
-          onExport={handleExport}
-          onCreateSession={handleCreateSession}
-          onRevealConfig={handleRevealConfig}
-        />
+        {activeTab === "sessions" ? (
+          <Toolbar
+            searchValue={searchValue}
+            onSearchChange={setSearchValue}
+            totalCount={config.sessions.length}
+            filteredCount={filteredSessions.length}
+            onImport={handleImport}
+            onExport={handleExport}
+            onCreateSession={handleCreateSession}
+            onRevealConfig={handleRevealConfig}
+          />
+        ) : (
+          <ProfileToolbar
+            searchValue={searchValue}
+            onSearchChange={setSearchValue}
+            totalCount={
+              activeTab === "terminals"
+                ? config.terminalProfiles.length
+                : config.ideProfiles.length
+            }
+            filteredCount={
+              activeTab === "terminals"
+                ? filteredTerminalProfiles.length
+                : filteredIdeProfiles.length
+            }
+            actionLabel={
+              activeTab === "terminals" ? "新建终端配置" : "新建 IDE 配置"
+            }
+            onCreate={() =>
+              handleCreateProfile(
+                activeTab === "terminals" ? "terminal" : "ide"
+              )
+            }
+          />
+        )}
 
         {loading ? (
           <EmptyState title="加载中" description="正在读取配置…" />
@@ -313,11 +472,52 @@ const App = () => {
           />
         ) : null}
 
-        {!loading && activeTab !== "sessions" ? (
-          <EmptyState
-            title="即将上线"
-            description="终端与 IDE 详情页会在下一步提供编辑能力。"
-          />
+        {!loading && activeTab === "terminals" ? (
+          filteredTerminalProfiles.length ? (
+            <div className="profile-grid">
+              {filteredTerminalProfiles.map((profile, index) => (
+                <ProfileCard
+                  key={profile.id}
+                  profile={profile}
+                  kindLabel="终端"
+                  delayMs={index * 70}
+                  onEdit={() => handleEditProfile("terminal", profile)}
+                  onDelete={() => handleDeleteProfile("terminal", profile.id)}
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title="还没有终端配置"
+              description="添加你常用的终端与启动参数，例如 iTerm2、Warp。"
+              actionLabel="新建终端配置"
+              onAction={() => handleCreateProfile("terminal")}
+            />
+          )
+        ) : null}
+
+        {!loading && activeTab === "ides" ? (
+          filteredIdeProfiles.length ? (
+            <div className="profile-grid">
+              {filteredIdeProfiles.map((profile, index) => (
+                <ProfileCard
+                  key={profile.id}
+                  profile={profile}
+                  kindLabel="IDE"
+                  delayMs={index * 70}
+                  onEdit={() => handleEditProfile("ide", profile)}
+                  onDelete={() => handleDeleteProfile("ide", profile.id)}
+                />
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title="还没有 IDE 配置"
+              description="添加 VS Code、Cursor 或 Antigravity 的启动命令。"
+              actionLabel="新建 IDE 配置"
+              onAction={() => handleCreateProfile("ide")}
+            />
+          )
         ) : null}
       </main>
 
@@ -340,6 +540,20 @@ const App = () => {
               ? handleDeleteSession
               : undefined
           }
+        />
+      ) : null}
+
+      {editingProfile ? (
+        <ProfileEditor
+          open={profileEditorOpen}
+          kind={profileKind}
+          profile={editingProfile}
+          onSave={handleSaveProfile}
+          onCancel={() => {
+            setProfileEditorOpen(false);
+            setEditingProfile(null);
+          }}
+          onDelete={(profileId) => handleDeleteProfile(profileKind, profileId)}
         />
       ) : null}
     </div>
