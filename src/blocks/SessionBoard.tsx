@@ -19,6 +19,7 @@ interface SessionBoardProps {
   onLaunchIde: (session: SessionConfig, profile?: IdeProfile) => void;
   onEnsureHome: (session: SessionConfig) => void;
   onRevealHome: (session: SessionConfig) => void;
+  onEditSession: (session: SessionConfig) => void;
 }
 
 const SessionBoard = ({
@@ -31,6 +32,7 @@ const SessionBoard = ({
   onLaunchIde,
   onEnsureHome,
   onRevealHome,
+  onEditSession,
 }: SessionBoardProps) => {
   if (sessions.length === 0) {
     return (
@@ -68,6 +70,7 @@ const SessionBoard = ({
           onLaunchIde={onLaunchIde}
           onEnsureHome={onEnsureHome}
           onRevealHome={onRevealHome}
+          onEdit={onEditSession}
         />
       ))}
     </div>

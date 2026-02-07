@@ -14,6 +14,7 @@ import "./App.css";
 import SegmentTabs from "./components/SegmentTabs";
 import Toolbar from "./components/Toolbar";
 import EmptyState from "./components/EmptyState";
+import SessionEditor from "./components/SessionEditor";
 import SessionBoard from "./blocks/SessionBoard";
 import { createConfigService, parseConfig, serializeConfig } from "./services/configService";
 import type { AppConfig, IdeProfile, SessionConfig } from "./types/config";
@@ -31,6 +32,10 @@ const App = () => {
   const [searchValue, setSearchValue] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingSession, setEditingSession] = useState<SessionConfig | null>(
+    null
+  );
 
   const fileClient = useMemo(
     () => ({
@@ -105,24 +110,69 @@ const App = () => {
   const handleCreateSession = async () => {
     try {
       const id = `session-${Date.now()}`;
-      const next: AppConfig = {
-        ...config,
-        sessions: [
-          ...config.sessions,
-          {
-            id,
-            name: `新会话 ${config.sessions.length + 1}`,
-            codexHome: "~/.codex",
-            loginType: "chatgpt",
-          },
-        ],
-        defaultSessionId: config.defaultSessionId ?? id,
-      };
-      setConfig(next);
-      await configService.save(next);
-      setStatus("已创建会话");
+      setEditingSession({
+        id,
+        name: `新会话 ${config.sessions.length + 1}`,
+        codexHome: "~/.codex",
+        loginType: "chatgpt",
+      });
+      setEditorOpen(true);
     } catch (error) {
       setStatus("创建会话失败");
+    }
+  };
+
+  const handleEditSession = (session: SessionConfig) => {
+    setEditingSession(session);
+    setEditorOpen(true);
+  };
+
+  const handleSaveSession = async (session: SessionConfig) => {
+    const exists = config.sessions.some((entry) => entry.id === session.id);
+    const nextSessions = exists
+      ? config.sessions.map((entry) =>
+          entry.id === session.id ? session : entry
+        )
+      : [...config.sessions, session];
+
+    const next: AppConfig = {
+      ...config,
+      sessions: nextSessions,
+      defaultSessionId: config.defaultSessionId ?? session.id,
+    };
+
+    try {
+      setConfig(next);
+      await configService.save(next);
+      setEditorOpen(false);
+      setEditingSession(null);
+      setStatus(exists ? "会话已更新" : "会话已创建");
+    } catch (error) {
+      setStatus("保存失败");
+    }
+  };
+
+  const handleDeleteSession = async (sessionId: string) => {
+    const nextSessions = config.sessions.filter(
+      (session) => session.id !== sessionId
+    );
+    const next: AppConfig = {
+      ...config,
+      sessions: nextSessions,
+      defaultSessionId:
+        config.defaultSessionId === sessionId
+          ? nextSessions[0]?.id
+          : config.defaultSessionId,
+    };
+
+    try {
+      setConfig(next);
+      await configService.save(next);
+      setEditorOpen(false);
+      setEditingSession(null);
+      setStatus("会话已删除");
+    } catch (error) {
+      setStatus("删除失败");
     }
   };
 
@@ -259,6 +309,7 @@ const App = () => {
             onLaunchIde={handleLaunchIde}
             onEnsureHome={handleEnsureHome}
             onRevealHome={handleRevealHome}
+            onEditSession={handleEditSession}
           />
         ) : null}
 
@@ -269,6 +320,28 @@ const App = () => {
           />
         ) : null}
       </main>
+
+      {editingSession ? (
+        <SessionEditor
+          open={editorOpen}
+          session={editingSession}
+          isNew={
+            !config.sessions.some((entry) => entry.id === editingSession.id)
+          }
+          terminalProfiles={config.terminalProfiles}
+          ideProfiles={config.ideProfiles}
+          onSave={handleSaveSession}
+          onCancel={() => {
+            setEditorOpen(false);
+            setEditingSession(null);
+          }}
+          onDelete={
+            config.sessions.some((entry) => entry.id === editingSession.id)
+              ? handleDeleteSession
+              : undefined
+          }
+        />
+      ) : null}
     </div>
   );
 };

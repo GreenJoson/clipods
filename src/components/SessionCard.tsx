@@ -17,6 +17,7 @@ interface SessionCardProps {
   onLaunchIde: (session: SessionConfig, profile?: IdeProfile) => void;
   onEnsureHome: (session: SessionConfig) => void;
   onRevealHome: (session: SessionConfig) => void;
+  onEdit: (session: SessionConfig) => void;
 }
 
 const SessionCard = ({
@@ -29,6 +30,7 @@ const SessionCard = ({
   onLaunchIde,
   onEnsureHome,
   onRevealHome,
+  onEdit,
 }: SessionCardProps) => (
   <div
     className="session-card motion-rise-in"
@@ -77,6 +79,9 @@ const SessionCard = ({
       </button>
       <button type="button" className="btn" onClick={() => onEnsureHome(session)}>
         登录准备
+      </button>
+      <button type="button" className="btn" onClick={() => onEdit(session)}>
+        编辑
       </button>
       <button type="button" className="btn btn-ghost" onClick={() => onRevealHome(session)}>
         打开目录
