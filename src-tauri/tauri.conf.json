@@ -38,8 +38,8 @@
     ]
   },
   "plugins": {
-    "shell": {},
-    "fs": {},
-    "dialog": {}
+    "shell": null,
+    "fs": null,
+    "dialog": null
   }
 }
