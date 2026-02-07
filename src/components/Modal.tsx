@@ -5,7 +5,7 @@
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 
 interface ModalProps {
   open: boolean;
@@ -28,14 +28,27 @@ const Modal = ({
     return null;
   }
 
+  const titleId = useId();
+  const descriptionId = useId();
+
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true">
+    <div
+      className="modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      aria-describedby={description ? descriptionId : undefined}
+    >
       <div className="modal-card motion-rise-in">
         <header className="modal-header">
           <div>
-            <div className="modal-title">{title}</div>
+            <div className="modal-title" id={titleId}>
+              {title}
+            </div>
             {description ? (
-              <div className="modal-description">{description}</div>
+              <div className="modal-description" id={descriptionId}>
+                {description}
+              </div>
             ) : null}
           </div>
           <button type="button" className="btn btn-ghost" onClick={onClose}>

@@ -190,6 +190,10 @@ const App = () => {
   };
 
   const handleDeleteSession = async (sessionId: string) => {
+    const confirmed = window.confirm("确定删除该会话？此操作不可撤销。");
+    if (!confirmed) {
+      return;
+    }
     const nextSessions = config.sessions.filter(
       (session) => session.id !== sessionId
     );
@@ -272,6 +276,14 @@ const App = () => {
     kind: ProfileKind,
     profileId: string
   ) => {
+    const warning =
+      kind === "terminal"
+        ? "确定删除终端配置？关联会话将清除终端设置。"
+        : "确定删除 IDE 配置？关联会话将清除 IDE 设置。";
+    const confirmed = window.confirm(warning);
+    if (!confirmed) {
+      return;
+    }
     const isTerminal = kind === "terminal";
     const nextTerminalProfiles = isTerminal
       ? config.terminalProfiles.filter((profile) => profile.id !== profileId)
