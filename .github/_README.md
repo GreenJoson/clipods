@@ -1,8 +1,8 @@
-# models - 目录说明
+# .github - GitHub 配置
 
 > ⚠️ 一旦本文件夹有所变化，请更新本文件
 
 | 文件名 | 地位 | 功能 |
 |-------|------|------|
 | _README.md | 文档 | 本目录说明 |
-| session.ts | 核心 | Session 配置模型处理（含 Codex.app 字段归一化） |
+| workflows | 配置 | GitHub Actions 工作流 |

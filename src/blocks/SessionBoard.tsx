@@ -1,5 +1,5 @@
 /**
- * @input  依赖：SessionCard, EmptyState, 配置类型, 启动配置, 登录入口, 登录状态
+ * @input  依赖：SessionCard, EmptyState, 配置类型, 启动配置, 登录入口, 登录状态, Codex.app 启动, i18n
  * @output 导出：SessionBoard 区块
  * @pos    会话列表布局与空态控制
  *
@@ -8,6 +8,7 @@
 import EmptyState from "../components/EmptyState";
 import SessionCard from "../components/SessionCard";
 import type { IdeProfile, SessionConfig, TerminalProfile } from "../types/config";
+import { useI18n } from "../i18n";
 
 interface SessionBoardProps {
   sessions: SessionConfig[];
@@ -18,6 +19,7 @@ interface SessionBoardProps {
   onCreateSession: () => void;
   onLaunchTerminal: (session: SessionConfig, profile?: TerminalProfile) => void;
   onLaunchIde: (session: SessionConfig, profile?: IdeProfile) => void;
+  onLaunchCodexApp: (session: SessionConfig) => void;
   onLogin: (session: SessionConfig, profile?: TerminalProfile) => void;
   onRevealHome: (session: SessionConfig) => void;
   onEditSession: (session: SessionConfig) => void;
@@ -32,16 +34,18 @@ const SessionBoard = ({
   onCreateSession,
   onLaunchTerminal,
   onLaunchIde,
+  onLaunchCodexApp,
   onLogin,
   onRevealHome,
   onEditSession,
 }: SessionBoardProps) => {
+  const { t } = useI18n();
   if (sessions.length === 0) {
     return (
       <EmptyState
-        title="先建一个会话"
-        description="创建会话后，你可以为每个账号配置独立的 CODEX_HOME 与启动方式。"
-        actionLabel="创建会话"
+        title={t("empty.sessions.title")}
+        description={t("empty.sessions.desc")}
+        actionLabel={t("empty.sessions.action")}
         onAction={onCreateSession}
       />
     );
@@ -71,6 +75,7 @@ const SessionBoard = ({
           delayMs={index * 80}
           onLaunchTerminal={onLaunchTerminal}
           onLaunchIde={onLaunchIde}
+          onLaunchCodexApp={onLaunchCodexApp}
           onLogin={onLogin}
           onRevealHome={onRevealHome}
           onEdit={onEditSession}

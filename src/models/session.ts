@@ -1,6 +1,6 @@
 /**
  * @input  依赖：SessionConfig 类型
- * @output 导出：session 规范化与构建工具（含启动命令与高级 TOML）
+ * @output 导出：session 规范化与构建工具（含启动命令、Codex.app 与高级 TOML）
  * @pos    Session 配置模型的处理层
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
@@ -39,6 +39,9 @@ const readStringRecord = (
 const readLoginType = (value: unknown): SessionAuthType =>
   value === "chatgpt" || value === "api" ? value : DEFAULT_LOGIN_TYPE;
 
+const readBoolOptional = (value: unknown): boolean | undefined =>
+  typeof value === "boolean" ? value : undefined;
+
 export const createSession = (
   input: Partial<SessionConfig> & Pick<SessionConfig, "id" | "name">
 ): SessionConfig => ({
@@ -54,6 +57,10 @@ export const createSession = (
     input.extraConfigToml && input.extraConfigToml.trim()
       ? input.extraConfigToml
       : undefined,
+  codexAppEnabled: input.codexAppEnabled,
+  codexAppPath: input.codexAppPath,
+  codexAppUserDataDir: input.codexAppUserDataDir,
+  codexAppAllowMultiple: input.codexAppAllowMultiple,
 });
 
 export const normalizeSession = (value: unknown): SessionConfig | null => {
@@ -78,5 +85,9 @@ export const normalizeSession = (value: unknown): SessionConfig | null => {
     launchCommand: readStringOptional(value.launchCommand),
     env: readStringRecord(value.env),
     extraConfigToml: readStringOptional(value.extraConfigToml),
+    codexAppEnabled: readBoolOptional(value.codexAppEnabled),
+    codexAppPath: readStringOptional(value.codexAppPath),
+    codexAppUserDataDir: readStringOptional(value.codexAppUserDataDir),
+    codexAppAllowMultiple: readBoolOptional(value.codexAppAllowMultiple),
   });
 };

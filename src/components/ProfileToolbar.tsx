@@ -1,5 +1,5 @@
 /**
- * @input  依赖：React
+ * @input  依赖：React, i18n 文案
  * @output 导出：ProfileToolbar 组件
  * @pos    终端与 IDE 配置工具栏
  *
@@ -8,19 +8,22 @@
 interface ProfileToolbarProps {
   searchValue: string;
   onSearchChange: (value: string) => void;
-  totalCount: number;
-  filteredCount: number;
   actionLabel: string;
   onCreate: () => void;
+  labels: {
+    searchPlaceholder: string;
+    searchAria: string;
+    total: string;
+    filtered: string;
+  };
 }
 
 const ProfileToolbar = ({
   searchValue,
   onSearchChange,
-  totalCount,
-  filteredCount,
   actionLabel,
   onCreate,
+  labels,
 }: ProfileToolbarProps) => (
   <div className="toolbar surface">
     <div className="toolbar-left">
@@ -28,11 +31,11 @@ const ProfileToolbar = ({
         className="search-input"
         value={searchValue}
         onChange={(event) => onSearchChange(event.currentTarget.value)}
-        placeholder="搜索名称或命令"
-        aria-label="搜索配置"
+        placeholder={labels.searchPlaceholder}
+        aria-label={labels.searchAria}
       />
-      <span className="kpi-pill">总数 {totalCount}</span>
-      <span className="kpi-pill">显示 {filteredCount}</span>
+      <span className="kpi-pill">{labels.total}</span>
+      <span className="kpi-pill">{labels.filtered}</span>
     </div>
     <div className="toolbar-actions">
       <button type="button" className="btn btn-primary" onClick={onCreate}>

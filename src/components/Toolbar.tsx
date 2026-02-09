@@ -1,5 +1,5 @@
 /**
- * @input  依赖：React
+ * @input  依赖：React, i18n 文案
  * @output 导出：Toolbar 组件
  * @pos    搜索与快捷操作区
  *
@@ -8,23 +8,30 @@
 interface ToolbarProps {
   searchValue: string;
   onSearchChange: (value: string) => void;
-  totalCount: number;
-  filteredCount: number;
   onImport: () => void;
   onExport: () => void;
   onCreateSession: () => void;
   onRevealConfig: () => void;
+  labels: {
+    searchPlaceholder: string;
+    searchAria: string;
+    total: string;
+    filtered: string;
+    openConfig: string;
+    import: string;
+    export: string;
+    createSession: string;
+  };
 }
 
 const Toolbar = ({
   searchValue,
   onSearchChange,
-  totalCount,
-  filteredCount,
   onImport,
   onExport,
   onCreateSession,
   onRevealConfig,
+  labels,
 }: ToolbarProps) => (
   <div className="toolbar surface">
     <div className="toolbar-left">
@@ -32,24 +39,24 @@ const Toolbar = ({
         className="search-input"
         value={searchValue}
         onChange={(event) => onSearchChange(event.currentTarget.value)}
-        placeholder="搜索会话或路径"
-        aria-label="搜索会话"
+        placeholder={labels.searchPlaceholder}
+        aria-label={labels.searchAria}
       />
-      <span className="kpi-pill">总数 {totalCount}</span>
-      <span className="kpi-pill">显示 {filteredCount}</span>
+      <span className="kpi-pill">{labels.total}</span>
+      <span className="kpi-pill">{labels.filtered}</span>
     </div>
     <div className="toolbar-actions">
       <button type="button" className="btn btn-ghost" onClick={onRevealConfig}>
-        打开配置目录
+        {labels.openConfig}
       </button>
       <button type="button" className="btn" onClick={onImport}>
-        导入
+        {labels.import}
       </button>
       <button type="button" className="btn" onClick={onExport}>
-        导出
+        {labels.export}
       </button>
       <button type="button" className="btn btn-primary" onClick={onCreateSession}>
-        新建会话
+        {labels.createSession}
       </button>
     </div>
   </div>

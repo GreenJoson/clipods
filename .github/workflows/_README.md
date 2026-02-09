@@ -1,8 +1,8 @@
-# models - 目录说明
+# workflows - 自动化流程
 
 > ⚠️ 一旦本文件夹有所变化，请更新本文件
 
 | 文件名 | 地位 | 功能 |
 |-------|------|------|
 | _README.md | 文档 | 本目录说明 |
-| session.ts | 核心 | Session 配置模型处理（含 Codex.app 字段归一化） |
+| release.yml | 核心 | Release 发布后触发三平台打包 |

@@ -1,6 +1,6 @@
 /**
  * @input  依赖：./styles/theme.css
- * @output 导出：应用主界面样式（含紧凑卡片、粘性顶栏与滚动容器）
+ * @output 导出：应用主界面样式（含紧凑卡片、主题切换、粘性顶栏与滚动容器）
  * @pos    启动器 UI 视觉与布局定义
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
@@ -87,6 +87,50 @@
   font-size: 0.75rem;
   color: var(--color-text-muted);
   opacity: 0.8;
+}
+
+.brand-toggle-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-left: var(--space-sm);
+}
+
+.toggle-pill {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: 0.2s ease;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.toggle-pill svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.toggle-pill.is-active {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-glow);
+  background: var(--color-surface);
+}
+
+.toggle-pill.toggle-lang {
+  font-family: var(--font-display);
+  letter-spacing: 0.4px;
 }
 
 .first-run-notice {

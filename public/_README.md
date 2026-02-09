@@ -6,3 +6,4 @@
 |-------|------|------|
 | _README.md | 文档 | 本目录说明 |
 | icon.png | 资源 | 应用图标（用于前端 favicon） |
+| screenshot | 资源 | 应用截图（README 展示） |

@@ -1,5 +1,5 @@
 /**
- * @input  依赖：React, ReactDOM, App, ./index.css, ./utils/globalShim, 开发错误提示
+ * @input  依赖：React, ReactDOM, App, LocaleProvider, ./index.css, ./utils/globalShim, 开发错误提示
  * @output 导出：无（渲染入口）
  * @pos    前端应用启动与挂载
  *
@@ -9,6 +9,7 @@ import "./utils/globalShim";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import { LocaleProvider } from "./i18n";
 import "./index.css";
 
 const ERROR_OVERLAY_ID = "dev-error-overlay";
@@ -104,7 +105,9 @@ installDevErrorOverlay();
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <App />
+      <LocaleProvider>
+        <App />
+      </LocaleProvider>
     </ErrorBoundary>
   </React.StrictMode>,
 );
