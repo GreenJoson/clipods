@@ -1,5 +1,5 @@
 /**
- * @input  依赖：React, Tauri API, 配置服务, Codex 配置生成, 登录状态检测, 终端安装检测, 更新检测, 平台检测, 帮助说明/删除确认弹窗, UI 组件, 文件系统工具, 启动命令, 登录流程, 目录预创建与 auth.json 写入, 终端配置引导
+ * @input  依赖：React, Tauri API, 配置服务, Codex 配置生成, 登录状态检测, 终端安装检测, 更新检测, 平台检测, 帮助说明/删除确认弹窗, UI 组件, 文件系统工具, 启动命令, 登录流程, 目录预创建与 auth.json 写入, 终端配置引导与回填
  * @output 导出：App 组件
  * @pos    启动器 UI 主入口与状态协调
  *
@@ -50,6 +50,10 @@ const App = () => {
     kind: ProfileKind;
     id: string;
     name: string;
+  } | null>(null);
+  const [pendingProfileSelection, setPendingProfileSelection] = useState<{
+    kind: ProfileKind;
+    sessionId: string;
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -427,7 +431,7 @@ const App = () => {
     }
   };
 
-  const handleCreateProfile = (kind: ProfileKind) => {
+  const handleCreateProfile = (kind: ProfileKind, sessionId?: string) => {
     const id = `${kind}-${Date.now()}`;
     const profile =
       kind === "terminal"
@@ -446,6 +450,11 @@ const App = () => {
     setProfileKind(kind);
     setEditingProfile(profile);
     setProfileEditorOpen(true);
+    if (sessionId) {
+      setPendingProfileSelection({ kind, sessionId });
+    } else {
+      setPendingProfileSelection(null);
+    }
   };
 
   const handleEditProfile = (
@@ -474,6 +483,26 @@ const App = () => {
     setConfig(next);
     setProfileEditorOpen(false);
     setEditingProfile(null);
+    if (
+      pendingProfileSelection &&
+      pendingProfileSelection.kind === profileKind &&
+      editingSession &&
+      editingSession.id === pendingProfileSelection.sessionId
+    ) {
+      setEditingSession((prev) =>
+        prev && prev.id === pendingProfileSelection.sessionId
+          ? {
+              ...prev,
+              terminalProfileId:
+                profileKind === "terminal" ? profile.id : prev.terminalProfileId,
+              ideProfileId:
+                profileKind === "ide" ? profile.id : prev.ideProfileId,
+            }
+          : prev
+      );
+      setEditorOpen(true);
+    }
+    setPendingProfileSelection(null);
     setStatus(exists ? "配置已更新" : "配置已创建");
     try {
       await configService.save(next);
@@ -958,7 +987,9 @@ const App = () => {
           }
           terminalProfiles={config.terminalProfiles}
           ideProfiles={config.ideProfiles}
-          onCreateTerminalProfile={() => handleCreateProfile("terminal")}
+          onCreateTerminalProfile={() =>
+            handleCreateProfile("terminal", editingSession.id)
+          }
           onSave={handleSaveSession}
           onCancel={() => {
             setEditorOpen(false);
