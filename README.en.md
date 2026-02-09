@@ -64,18 +64,6 @@ npm run tauri dev
 - Saving a session or opening terminal writes Codex config to `CODEX_HOME/config.toml`.
 - API sessions write `CODEX_HOME/auth.json` with `OPENAI_API_KEY`.
 
-## Updates (GitHub Releases)
-
-1. Run `tauri signer generate` and replace `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`.
-2. Configure `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` in GitHub Actions secrets.
-3. Upload `latest.json` following Tauri Updater spec.
-4. Click “Check updates” in the app.
-
-## Release builds (GitHub Actions)
-
-- Publishing a GitHub Release (published) triggers macOS/Windows/Linux builds and uploads artifacts to that Release.
-- For signing/auto-update, configure Tauri Updater signatures and `latest.json`.
-
 ## Local build & install (macOS)
 
 ```bash

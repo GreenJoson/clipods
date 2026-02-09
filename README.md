@@ -67,18 +67,6 @@ npm run tauri dev
 - 会话支持填写 `OPENAI_ORGANIZATION` / `OPENAI_PROJECT`，并可追加“高级自定义 TOML”（追加到会话配置末尾）。
 - API 登录会话会写入 `CODEX_HOME/auth.json`（仅包含 `OPENAI_API_KEY`），以匹配中转/自定义 provider 的用法。
 
-## 更新配置（GitHub Releases）
-
-1. 使用 `tauri signer generate` 生成更新签名，并替换 `src-tauri/tauri.conf.json` 的 `plugins.updater.pubkey`。
-2. 在 GitHub Actions Secrets 中配置 `TAURI_SIGNING_PRIVATE_KEY` 与 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`。
-3. 按 Tauri Updater 规范生成 `latest.json` 并上传到 GitHub Release。
-4. 应用内点击“检查更新”即可从 GitHub 获取更新。
-
-## Release 打包（GitHub Actions）
-
-- 发布 GitHub Release（published）后，会自动触发 macOS/Windows/Linux 打包并上传到 Release 附件。
-- 如需签名/自动更新，请配置 Tauri Updater 的签名与 `latest.json`。
-
 ## 本地打包与安装（macOS）
 
 ```bash
