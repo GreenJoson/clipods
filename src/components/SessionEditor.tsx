@@ -1,5 +1,5 @@
 /**
- * @input  依赖：React, Modal, 配置类型, 表单辅助, 启动命令构建器, 环境变量快捷填充, 高级 TOML, 提示弹层
+ * @input  依赖：React, Modal, 配置类型, 表单辅助, 启动命令构建器, 环境变量快捷填充, 高级 TOML, 提示弹层, 终端配置引导
  * @output 导出：SessionEditor 组件
  * @pos    会话创建与编辑弹窗
  *
@@ -20,6 +20,7 @@ interface SessionEditorProps {
   isNew: boolean;
   terminalProfiles: TerminalProfile[];
   ideProfiles: IdeProfile[];
+  onCreateTerminalProfile: () => void;
   onSave: (session: SessionConfig) => void;
   onCancel: () => void;
   onDelete?: (sessionId: string) => void;
@@ -260,6 +261,7 @@ const SessionEditor = ({
   isNew,
   terminalProfiles,
   ideProfiles,
+  onCreateTerminalProfile,
   onSave,
   onCancel,
   onDelete,
@@ -553,6 +555,18 @@ const SessionEditor = ({
               </option>
             ))}
           </select>
+          {terminalProfiles.length === 0 ? (
+            <div className="inline-alert inline-alert-warning">
+              <span>还没有终端配置，请先创建终端。</span>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={onCreateTerminalProfile}
+              >
+                创建终端
+              </button>
+            </div>
+          ) : null}
         </label>
         <label className="form-field">
           <span className="field-label">IDE 配置</span>

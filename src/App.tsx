@@ -1,5 +1,5 @@
 /**
- * @input  依赖：React, Tauri API, 配置服务, Codex 配置生成, 登录状态检测, 终端安装检测, 更新检测, 平台检测, 帮助说明弹窗, UI 组件, 文件系统工具, 启动命令, 登录流程, 目录预创建与 auth.json 写入
+ * @input  依赖：React, Tauri API, 配置服务, Codex 配置生成, 登录状态检测, 终端安装检测, 更新检测, 平台检测, 帮助说明弹窗, UI 组件, 文件系统工具, 启动命令, 登录流程, 目录预创建与 auth.json 写入, 终端配置引导
  * @output 导出：App 组件
  * @pos    启动器 UI 主入口与状态协调
  *
@@ -932,6 +932,7 @@ const App = () => {
           }
           terminalProfiles={config.terminalProfiles}
           ideProfiles={config.ideProfiles}
+          onCreateTerminalProfile={() => handleCreateProfile("terminal")}
           onSave={handleSaveSession}
           onCancel={() => {
             setEditorOpen(false);

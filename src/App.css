@@ -117,6 +117,23 @@
   font-size: 0.85rem;
 }
 
+.inline-alert {
+  margin-top: var(--space-2xs);
+  padding: var(--space-2xs) var(--space-xs);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xs);
+  font-size: 0.78rem;
+}
+
+.inline-alert-warning {
+  color: var(--color-status-warning);
+  background: var(--color-status-warning-bg);
+  border: 1px solid color-mix(in srgb, var(--color-status-warning) 20%, transparent);
+}
+
 .top-actions {
   display: flex;
   align-items: center;

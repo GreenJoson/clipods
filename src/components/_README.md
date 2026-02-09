@@ -12,5 +12,5 @@
 | ProfileToolbar.tsx | 核心 | 终端与 IDE 配置工具栏 |
 | SegmentTabs.tsx | 基础 | 顶部分段导航组件 |
 | SessionCard.tsx | 核心 | 会话卡片展示与操作（含官方登录入口、登录状态与项目路径） |
-| SessionEditor.tsx | 核心 | 会话创建与编辑弹窗（含命令构建器、环境变量快捷填充/恢复与高级 TOML） |
+| SessionEditor.tsx | 核心 | 会话创建与编辑弹窗（含命令构建器、环境变量快捷填充/恢复、高级 TOML 与终端配置提示） |
 | Toolbar.tsx | 核心 | 搜索与快捷操作栏 |
