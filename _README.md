@@ -11,6 +11,7 @@
 | package-lock.json | 依赖 | NPM 依赖锁定 |
 | index.html | 核心 | 前端入口 HTML |
 | vite.config.ts | 核心 | Vite 配置 |
+| vitest.config.ts | 配置 | Vitest 测试配置 |
 | tsconfig.json | 配置 | TypeScript 基础配置 |
 | tsconfig.node.json | 配置 | Node/构建相关 TS 配置 |
 | src | 核心 | 前端源代码 |

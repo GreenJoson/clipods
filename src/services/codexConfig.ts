@@ -1,7 +1,7 @@
 /**
- * @input  依赖：SessionConfig 类型、环境变量映射
+ * @input  依赖：SessionConfig 类型、环境变量映射、TOML 字符转义
  * @output 导出：Codex config.toml 生成器（clipods 标记）
- * @pos    会话配置到 Codex CLI 配置的转换层
+ * @pos    会话配置到 Codex CLI 配置的转换层（含转义）
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
@@ -11,6 +11,16 @@ const getEnvValue = (
   env: Record<string, string> | undefined,
   key: string
 ): string => (env?.[key] ?? "").trim();
+
+const escapeTomlString = (value: string): string =>
+  value
+    .replace(/\\/gu, "\\\\")
+    .replace(/"/gu, "\\\"")
+    .replace(/\n/gu, "\\n")
+    .replace(/\r/gu, "\\r")
+    .replace(/\t/gu, "\\t");
+
+const toTomlString = (value: string): string => `"${escapeTomlString(value)}"`;
 
 const buildEnvHttpHeaders = (env: Record<string, string>): string | null => {
   const org = getEnvValue(env, "OPENAI_ORGANIZATION");
@@ -44,7 +54,7 @@ export const buildCodexConfig = (session: SessionConfig): string => {
   const env = session.env ?? {};
   const model = getEnvValue(env, "OPENAI_MODEL");
   if (model) {
-    lines.push(`model = "${model}"`);
+    lines.push(`model = ${toTomlString(model)}`);
   }
 
   const baseUrl = getEnvValue(env, "OPENAI_BASE_URL");
@@ -56,7 +66,7 @@ export const buildCodexConfig = (session: SessionConfig): string => {
     lines.push('name = "custom"');
     lines.push('wire_api = "responses"');
     lines.push("requires_openai_auth = false");
-    lines.push(`base_url = "${baseUrl}"`);
+    lines.push(`base_url = ${toTomlString(baseUrl)}`);
   } else {
     lines.push('model_provider = "openai"');
     const envHeaders = buildEnvHttpHeaders(env);
@@ -68,7 +78,7 @@ export const buildCodexConfig = (session: SessionConfig): string => {
       lines.push("[model_providers.openai]");
       lines.push('name = "openai"');
       if (baseUrl) {
-        lines.push(`base_url = "${baseUrl}"`);
+        lines.push(`base_url = ${toTomlString(baseUrl)}`);
       }
       if (session.loginType === "api") {
         lines.push('env_key = "OPENAI_API_KEY"');

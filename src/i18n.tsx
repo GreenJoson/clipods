@@ -1,7 +1,7 @@
 /**
- * @input  依赖：React, localStorage, navigator, 中英文文案映射（含终端模板）
+ * @input  依赖：React, localStorage, navigator, 中英文文案映射（含终端模板与 Codex.app 文案）
  * @output 导出：LocaleProvider/useI18n/Locale 类型与翻译函数
- * @pos    简易 i18n 入口与语言状态管理（含终端模板文案）
+ * @pos    简易 i18n 入口与语言状态管理（含终端模板与 Codex.app 文案）
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
@@ -170,8 +170,8 @@ const zh = {
   "sessionEditor.field.codexApp.multi": "允许多开（会使用独立 userDataDir）",
   "sessionEditor.field.codexApp.path": "App 路径",
   "sessionEditor.field.codexApp.userDataDir": "userDataDir（可选）",
-  "sessionEditor.field.codexApp.userDataDir.placeholder": "默认：<CODEX_HOME>/app_data",
-  "sessionEditor.field.codexApp.help": "启用后会使用本会话的 CODEX_HOME 启动 Codex.app，可选隔离 userDataDir 以支持多开。",
+  "sessionEditor.field.codexApp.userDataDir.placeholder": "默认：<CODEX_HOME>/app_data/<sessionId>",
+  "sessionEditor.field.codexApp.help": "启用后会使用本会话的 CODEX_HOME 启动 Codex.app，默认按会话隔离 userDataDir 以支持多开。",
   "sessionEditor.option.unset": "不指定",
   "sessionEditor.placeholder.name": "例如：ChatGPT 主账号",
   "sessionEditor.placeholder.codexHome": "~/.codex",
@@ -420,8 +420,8 @@ const en: Record<TranslationKey, string> = {
   "sessionEditor.field.codexApp.multi": "Allow multiple instances (use separate userDataDir)",
   "sessionEditor.field.codexApp.path": "App path",
   "sessionEditor.field.codexApp.userDataDir": "userDataDir (optional)",
-  "sessionEditor.field.codexApp.userDataDir.placeholder": "Default: <CODEX_HOME>/app_data",
-  "sessionEditor.field.codexApp.help": "Uses this session's CODEX_HOME for Codex.app, with optional userDataDir isolation.",
+  "sessionEditor.field.codexApp.userDataDir.placeholder": "Default: <CODEX_HOME>/app_data/<sessionId>",
+  "sessionEditor.field.codexApp.help": "Uses this session's CODEX_HOME for Codex.app with per-session userDataDir isolation.",
   "sessionEditor.option.unset": "Not set",
   "sessionEditor.placeholder.name": "e.g. Main ChatGPT account",
   "sessionEditor.placeholder.codexHome": "~/.codex",

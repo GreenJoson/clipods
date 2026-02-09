@@ -1,7 +1,7 @@
 /**
- * @input  依赖：React, Tauri API, 配置服务, Codex 配置生成, 登录状态检测, 终端安装检测, Codex.app 启动, 更新检测, 平台检测, 帮助说明/删除确认弹窗, i18n, 主题切换, UI 组件, 文件系统工具, 启动命令, 登录流程, 目录预创建与 auth.json 写入, 终端配置引导与回填
+ * @input  依赖：React, Tauri API, 配置服务, Codex 配置生成, 登录状态检测, 终端安装检测, Codex.app 启动（多开隔离）, 更新检测, 平台检测, 帮助说明/删除确认弹窗, i18n, 主题切换, UI 组件, 文件系统工具, 启动命令, 登录流程, 目录预创建与 auth.json 写入, 终端配置引导与回填
  * @output 导出：App 组件
- * @pos    启动器 UI 主入口与状态协调
+ * @pos    启动器 UI 主入口与状态协调（含 Codex.app 多开隔离）
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
@@ -258,7 +258,8 @@ const App = () => {
       return explicit;
     }
     if (session.codexAppAllowMultiple) {
-      return `${resolvedHome.replace(/\/+$/u, "")}/app_data`;
+      const safeSessionId = session.id.replace(/[^a-zA-Z0-9_-]+/g, "_");
+      return `${resolvedHome.replace(/\/+$/u, "")}/app_data/${safeSessionId}`;
     }
     return undefined;
   };
