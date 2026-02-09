@@ -45,7 +45,7 @@
     "fs": null,
     "dialog": null,
     "updater": {
-      "pubkey": "REPLACE_WITH_PUBLIC_KEY",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEMyMjNBQkY0RjlBRUVDRTYKUldUbTdLNzU5S3Nqd3JxWTdWYytVM1BxSUhEb0gxZHpFdFF0dlVjSDNoQ2pVY0YwYWlqaUNPRFEK",
       "endpoints": [
         "https://github.com/GreenJoson/clipods/releases/latest/download/latest.json"
       ]
