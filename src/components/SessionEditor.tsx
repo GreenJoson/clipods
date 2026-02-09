@@ -542,7 +542,18 @@ const SessionEditor = ({
           </select>
         </label>
         <label className="form-field">
-          <span className="field-label">终端配置</span>
+          <span className="field-label field-label-row">
+            终端配置
+            {terminalProfiles.length === 0 ? (
+              <button
+                type="button"
+                className="inline-link inline-link-danger"
+                onClick={onCreateTerminalProfile}
+              >
+                还没有终端配置，点击创建
+              </button>
+            ) : null}
+          </span>
           <select
             className="field-input"
             value={terminalProfileId}
@@ -555,18 +566,6 @@ const SessionEditor = ({
               </option>
             ))}
           </select>
-          {terminalProfiles.length === 0 ? (
-            <div className="inline-alert inline-alert-warning">
-              <span>还没有终端配置，请先创建终端。</span>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={onCreateTerminalProfile}
-              >
-                创建终端
-              </button>
-            </div>
-          ) : null}
         </label>
         <label className="form-field">
           <span className="field-label">IDE 配置</span>
