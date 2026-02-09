@@ -6,7 +6,7 @@
 |-------|------|------|
 | _README.md | 文档 | 根目录说明 |
 | README.md | 文档 | 项目说明、使用指南与规则 |
-| package.json | 核心 | 前端依赖与脚本 |
+| package.json | 核心 | 前端依赖与脚本（含本地安装命令） |
 | package-lock.json | 依赖 | NPM 依赖锁定 |
 | index.html | 核心 | 前端入口 HTML |
 | vite.config.ts | 核心 | Vite 配置 |
