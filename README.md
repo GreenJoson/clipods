@@ -69,6 +69,11 @@ npm run tauri dev
 2. 按 Tauri Updater 规范生成 `latest.json` 并上传到 GitHub Release。
 3. 应用内点击“检查更新”即可从 GitHub 获取更新。
 
+## Release 打包（GitHub Actions）
+
+- 发布 GitHub Release（published）后，会自动触发 macOS/Windows/Linux 打包并上传到 Release 附件。
+- 如需签名/自动更新，请配置 Tauri Updater 的签名与 `latest.json`。
+
 ## 截图
 
 ![clipods](public/screenshot/screenshot_cn_1.jpg)
@@ -148,6 +153,11 @@ npm run tauri dev
 1. Generate an updater signature and replace `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`.
 2. Upload `latest.json` following Tauri Updater spec.
 3. Click “Check updates” in the app.
+
+### Release builds (GitHub Actions)
+
+- Publishing a GitHub Release (published) triggers macOS/Windows/Linux builds and uploads artifacts to that Release.
+- For signing/auto-update, configure Tauri Updater signatures and `latest.json`.
 
 ### Screenshots
 
