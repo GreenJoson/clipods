@@ -65,14 +65,23 @@ npm run tauri dev
 
 ## 更新配置（GitHub Releases）
 
-1. 生成更新签名并替换 `src-tauri/tauri.conf.json` 的 `plugins.updater.pubkey`。
-2. 按 Tauri Updater 规范生成 `latest.json` 并上传到 GitHub Release。
-3. 应用内点击“检查更新”即可从 GitHub 获取更新。
+1. 使用 `tauri signer generate` 生成更新签名，并替换 `src-tauri/tauri.conf.json` 的 `plugins.updater.pubkey`。
+2. 在 GitHub Actions Secrets 中配置 `TAURI_SIGNING_PRIVATE_KEY` 与 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`。
+3. 按 Tauri Updater 规范生成 `latest.json` 并上传到 GitHub Release。
+4. 应用内点击“检查更新”即可从 GitHub 获取更新。
 
 ## Release 打包（GitHub Actions）
 
 - 发布 GitHub Release（published）后，会自动触发 macOS/Windows/Linux 打包并上传到 Release 附件。
 - 如需签名/自动更新，请配置 Tauri Updater 的签名与 `latest.json`。
+
+## 本地打包与安装（macOS）
+
+```bash
+npm run install:macos
+```
+
+如提示权限不足，请使用 `sudo`。
 
 ## 截图
 
@@ -150,14 +159,23 @@ npm run tauri dev
 
 ### Updates (GitHub Releases)
 
-1. Generate an updater signature and replace `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`.
-2. Upload `latest.json` following Tauri Updater spec.
-3. Click “Check updates” in the app.
+1. Run `tauri signer generate` and replace `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`.
+2. Configure `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` in GitHub Actions secrets.
+3. Upload `latest.json` following Tauri Updater spec.
+4. Click “Check updates” in the app.
 
 ### Release builds (GitHub Actions)
 
 - Publishing a GitHub Release (published) triggers macOS/Windows/Linux builds and uploads artifacts to that Release.
 - For signing/auto-update, configure Tauri Updater signatures and `latest.json`.
+
+### Local build & install (macOS)
+
+```bash
+npm run install:macos
+```
+
+If you see permission errors, run with `sudo`.
 
 ### Screenshots
 
