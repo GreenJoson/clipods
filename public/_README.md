@@ -5,5 +5,4 @@
 | 文件名 | 地位 | 功能 |
 |-------|------|------|
 | _README.md | 文档 | 本目录说明 |
-| tauri.svg | 资源 | Tauri 标识图标 |
-| vite.svg | 资源 | Vite 标识图标 |
+| icon.png | 资源 | 应用图标（用于前端 favicon） |
