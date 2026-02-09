@@ -8,7 +8,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
-import { platform } from "@tauri-apps/api/os";
 import { appConfigDir } from "@tauri-apps/api/path";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { mkdir, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
@@ -160,13 +159,13 @@ const App = () => {
         active = false;
       };
     }
-    platform()
-      .then((value) => {
-        if (active && value === "macos") {
-          setShowFirstRunNotice(true);
-        }
-      })
-      .catch(() => undefined);
+    const platformLabel =
+      typeof navigator !== "undefined"
+        ? `${navigator.platform} ${navigator.userAgent}`
+        : "";
+    if (active && /mac|iphone|ipad|ipod/i.test(platformLabel)) {
+      setShowFirstRunNotice(true);
+    }
     return () => {
       active = false;
     };
