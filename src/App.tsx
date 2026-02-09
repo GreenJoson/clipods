@@ -1,5 +1,5 @@
 /**
- * @input  依赖：React, Tauri API, 配置服务, Codex 配置生成, 登录状态检测, 终端安装检测, 更新检测, 平台检测, UI 组件, 文件系统工具, 启动命令, 登录流程, 目录预创建与 auth.json 写入
+ * @input  依赖：React, Tauri API, 配置服务, Codex 配置生成, 登录状态检测, 终端安装检测, 更新检测, 平台检测, 帮助说明弹窗, UI 组件, 文件系统工具, 启动命令, 登录流程, 目录预创建与 auth.json 写入
  * @output 导出：App 组件
  * @pos    启动器 UI 主入口与状态协调
  *
@@ -46,6 +46,7 @@ const App = () => {
   const [status, setStatus] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState<string>("");
   const [showFirstRunNotice, setShowFirstRunNotice] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<SessionConfig | null>(
@@ -707,6 +708,14 @@ const App = () => {
     setShowFirstRunNotice(false);
   };
 
+  const handleOpenHelp = () => {
+    setShowHelpModal(true);
+  };
+
+  const handleCloseHelp = () => {
+    setShowHelpModal(false);
+  };
+
   return (
     <div className="app-shell">
       <Modal
@@ -742,6 +751,34 @@ const App = () => {
           </ol>
         </div>
       </Modal>
+      <Modal
+        open={showHelpModal}
+        title="使用说明"
+        description="常见问题与首次启动指引。"
+        onClose={handleCloseHelp}
+        footer={
+          <div className="modal-footer-actions">
+            <button type="button" className="btn btn-primary" onClick={handleCloseHelp}>
+              关闭
+            </button>
+          </div>
+        }
+      >
+        <div className="help-notice">
+          <section>
+            <h4>macOS 首次启动</h4>
+            <p>若提示“无法验证开发者”，请进入“系统设置 → 隐私与安全”，点击“仍要打开”。</p>
+          </section>
+          <section>
+            <h4>会话隔离</h4>
+            <p>每个会话绑定独立的 CODEX_HOME，配置与登录互不影响。</p>
+          </section>
+          <section>
+            <h4>更新</h4>
+            <p>点击右上角“检查更新”，从 GitHub Releases 获取最新版本。</p>
+          </section>
+        </div>
+      </Modal>
       <header className="topbar surface motion-rise-in">
         <div className="brand">
           <div className="brand-badge">C</div>
@@ -764,6 +801,9 @@ const App = () => {
               {status}
             </span>
           ) : null}
+          <button type="button" className="btn btn-ghost" onClick={handleOpenHelp}>
+            帮助
+          </button>
           <button type="button" className="btn btn-ghost" onClick={handleCheckUpdates}>
             检查更新
           </button>
