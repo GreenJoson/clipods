@@ -1,7 +1,7 @@
 /**
- * @input  依赖：React, 配置类型, 启动配置, 登录入口, 登录状态, Codex.app 启动, 项目路径正则解析, 紧凑布局, i18n
+ * @input  依赖：React, 配置类型, 启动配置, 登录入口, 登录状态, Codex.app 启动参数展示, 项目路径正则解析, 紧凑布局, i18n
  * @output 导出：SessionCard 组件
- * @pos    会话卡片展示与操作
+ * @pos    会话卡片展示与操作（含 Codex.app 调试信息）
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
@@ -17,6 +17,37 @@ const parseProjectPath = (command?: string): string | null => {
     return null;
   }
   return match[2] ?? match[3] ?? null;
+};
+
+const buildCodexAppUserDataDir = (session: SessionConfig): string | null => {
+  if (!session.codexAppEnabled) {
+    return null;
+  }
+  const explicit = session.codexAppUserDataDir?.trim();
+  if (explicit) {
+    return explicit;
+  }
+  if (!session.codexAppAllowMultiple) {
+    return null;
+  }
+  const base = session.codexHome.replace(/\/+$/u, "");
+  const safeSessionId = session.id.replace(/[^a-zA-Z0-9_-]+/g, "_");
+  return `${base}/app_data/${safeSessionId}`;
+};
+
+const buildCodexAppLaunchArgs = (
+  session: SessionConfig,
+  userDataDir: string | null
+): string | null => {
+  if (!session.codexAppEnabled) {
+    return null;
+  }
+  const appPath = session.codexAppPath?.trim() || "/Applications/Codex.app";
+  const openPrefix = session.codexAppAllowMultiple ? "open -n -a" : "open -a";
+  if (!userDataDir) {
+    return `${openPrefix} ${appPath}`;
+  }
+  return `${openPrefix} ${appPath} --args --user-data-dir ${userDataDir}`;
 };
 
 interface SessionCardProps {
@@ -75,6 +106,11 @@ const SessionCard = ({
       ? t("session.value.codexApp.multi")
       : t("session.value.codexApp.single")
     : "";
+  const codexAppUserDataDir = buildCodexAppUserDataDir(session);
+  const codexAppLaunchArgs = buildCodexAppLaunchArgs(
+    session,
+    codexAppUserDataDir
+  );
 
   return (
     <div
@@ -150,6 +186,17 @@ const SessionCard = ({
             </span>
           </div>
         ) : null}
+        {session.codexAppEnabled ? (
+          <div className="session-kv-item">
+            <span className="session-kv-label">
+              {t("session.label.codexAppUserDataDir")}
+            </span>
+            <span className="session-kv-value session-kv-mono">
+              {codexAppUserDataDir ??
+                t("session.value.codexAppUserDataDir.default")}
+            </span>
+          </div>
+        ) : null}
         <div className="session-kv-item">
           <span className="session-kv-label">{t("session.label.projectPath")}</span>
           <span className="session-kv-value">
@@ -157,6 +204,23 @@ const SessionCard = ({
               t("session.value.projectPath.default")}
           </span>
         </div>
+        {session.codexAppEnabled ? (
+          <div className="session-kv-item session-kv-wide">
+            <span className="session-kv-label">
+              {t("session.label.codexAppArgs")}
+            </span>
+            <span
+              className="session-kv-value session-kv-mono"
+              title={
+                codexAppLaunchArgs ??
+                t("session.value.codexAppArgs.default")
+              }
+            >
+              {codexAppLaunchArgs ??
+                t("session.value.codexAppArgs.default")}
+            </span>
+          </div>
+        ) : null}
         <div className="session-kv-item session-kv-wide">
           <span className="session-kv-label">{t("session.label.launchCommand")}</span>
           <span
