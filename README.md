@@ -12,10 +12,32 @@ Codex CLI 多会话启动器（Tauri + React）。
 ## 使用指南
 
 1. 新建会话：设置名称、`CODEX_HOME` 与登录方式（官方 / API）。
-2. 终端配置：添加终端命令（如 Terminal、iTerm2、Wave），可选参数与环境变量。
-3. IDE 配置：添加 IDE 命令（如 VS Code、Cursor、Antigravity），可选启动参数。
+2. 终端配置：输入应用名称或 `.app` 路径（如 Terminal、iTerm2、`/Applications/Warp.app`），支持拖拽 `.app` 进输入框；可选参数与环境变量。
+3. IDE 配置：输入应用名称或 `.app` 路径（如 VS Code、Cursor、`/Applications/Cursor.app`），可选启动参数。
 4. 会话绑定：为会话选择终端/IDE 配置，保存后即可一键启动。
 5. 导入导出：使用工具栏导入/导出 TOML，便于备份或多机同步。
+6. 会话启动命令：在会话里填写 `codex ...` 启动命令，打开终端时自动执行。
+
+## 命令与参数说明
+
+- 启动命令：使用 macOS `open -a`，支持**应用名**或**.app 路径**。
+  - 例：`Terminal` / `iTerm2` / `Wave` / `/Applications/Warp.app`
+- 启动参数：每行一个参数，等价于 `open -a 应用 --args 参数1 参数2`。
+  - 例：`--reuse-window`
+  - 占位符：`{command}` 表示会话启动命令，`{cwd}` 表示会话目录
+- Wave：当终端为 Wave 且未填写启动参数时，会自动通过 `wsh run` 执行会话命令。
+- 终端模板：内置 Terminal / iTerm2 / Wave 预设，选择后自动填充名称与启动命令。
+- 环境变量：仅终端配置支持，格式 `KEY=VALUE`，每行一项。
+
+## 会话命令说明
+
+- 会话的“启动命令”会在打开终端时执行，并自动注入：
+  - `CODEX_HOME`（对应会话目录）
+  - 会话环境变量（每行 `KEY=VALUE`）
+- 命令快捷生成支持交互/恢复/一次性执行/执行并恢复，并在界面显示说明与示例。
+- 示例：
+  - `codex --dangerously-bypass-approvals-and-sandbox`
+  - `codex --dangerously-bypass-approvals-and-sandbox resume 019b8051-e853-7ac1-a58a-4b686e139b1c`
 
 ## 开发与运行
 
@@ -31,6 +53,9 @@ npm run tauri dev
 
 - 配置文件保存在系统应用配置目录（由 Tauri `appConfigDir()` 决定）。
 - 会话、终端、IDE 配置统一由 TOML 存储与加载。
+- 保存会话/打开终端时，会在该会话的 `CODEX_HOME/config.toml` 写入 Codex CLI 配置，用于固定登录方式与模型相关设置，避免再次弹窗询问。
+- 会话支持填写 `OPENAI_ORGANIZATION` / `OPENAI_PROJECT`，并可追加“高级自定义 TOML”（追加到会话配置末尾）。
+- API 登录会话会写入 `CODEX_HOME/auth.json`（仅包含 `OPENAI_API_KEY`），以匹配中转/自定义 provider 的用法。
 
 ## Documentation Rules
 

@@ -1,5 +1,5 @@
 /**
- * @input  依赖：React, Tauri API, 配置服务, UI 组件, 文件系统工具
+ * @input  依赖：React, Tauri API, 配置服务, Codex 配置生成, 登录状态检测, 终端安装检测, UI 组件, 文件系统工具, 启动命令, 登录流程, 目录预创建与 auth.json 写入
  * @output 导出：App 组件
  * @pos    启动器 UI 主入口与状态协调
  *
@@ -20,6 +20,7 @@ import ProfileCard from "./components/ProfileCard";
 import SessionEditor from "./components/SessionEditor";
 import SessionBoard from "./blocks/SessionBoard";
 import { createConfigService, parseConfig, serializeConfig } from "./services/configService";
+import { buildCodexConfig } from "./services/codexConfig";
 import type {
   AppConfig,
   IdeProfile,
@@ -44,6 +45,9 @@ const App = () => {
   const [editingSession, setEditingSession] = useState<SessionConfig | null>(
     null
   );
+  const [loginStatusMap, setLoginStatusMap] = useState<
+    Record<string, "missing" | "api" | "chatgpt">
+  >({});
   const [profileEditorOpen, setProfileEditorOpen] = useState(false);
   const [profileKind, setProfileKind] = useState<ProfileKind>("terminal");
   const [editingProfile, setEditingProfile] = useState<
@@ -72,6 +76,35 @@ const App = () => {
     [fileClient, pathProvider]
   );
 
+  const writeCodexConfigFile = async (
+    session: SessionConfig,
+    resolvedHome: string | null
+  ): Promise<void> => {
+    const contents = buildCodexConfig(session);
+    await invoke("write_codex_config", {
+      path: resolvedHome ?? session.codexHome,
+      contents,
+    });
+  };
+
+  const writeCodexAuthFile = async (
+    session: SessionConfig,
+    resolvedHome: string | null
+  ): Promise<void> => {
+    if (session.loginType !== "api") {
+      return;
+    }
+    const apiKey = session.env?.OPENAI_API_KEY?.trim();
+    if (!apiKey) {
+      return;
+    }
+    const contents = JSON.stringify({ OPENAI_API_KEY: apiKey }, null, 2);
+    await invoke("write_codex_auth", {
+      path: resolvedHome ?? session.codexHome,
+      contents,
+    });
+  };
+
   useEffect(() => {
     let mounted = true;
     const loadConfig = async () => {
@@ -93,6 +126,97 @@ const App = () => {
       mounted = false;
     };
   }, [configService]);
+
+  useEffect(() => {
+    let active = true;
+    const loadStatus = async () => {
+      const entries = await Promise.all(
+        config.sessions.map(async (session) => {
+          if (session.loginType !== "chatgpt") {
+            return [session.id, "api"] as const;
+          }
+          try {
+            const status = await invoke<"missing" | "api" | "chatgpt">(
+              "check_codex_auth",
+              { path: session.codexHome }
+            );
+            return [session.id, status] as const;
+          } catch (error) {
+            return [session.id, "missing"] as const;
+          }
+        })
+      );
+      if (!active) {
+        return;
+      }
+      setLoginStatusMap(Object.fromEntries(entries));
+    };
+    loadStatus().catch(() => {
+      if (active) {
+        setLoginStatusMap({});
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [config.sessions]);
+
+  const sanitizeEnvForLoginType = (
+    session: SessionConfig,
+    env: Record<string, string>
+  ): Record<string, string> => {
+    if (session.loginType !== "chatgpt") {
+      return env;
+    }
+    const filtered = { ...env };
+    delete filtered.OPENAI_API_KEY;
+    delete filtered.OPENAI_BASE_URL;
+    delete filtered.OPENAI_MODEL;
+    delete filtered.OPENAI_ORGANIZATION;
+    delete filtered.OPENAI_PROJECT;
+    return filtered;
+  };
+
+  const refreshLoginStatus = async (session: SessionConfig) => {
+    if (session.loginType !== "chatgpt") {
+      setLoginStatusMap((prev) => ({ ...prev, [session.id]: "api" }));
+      return;
+    }
+    try {
+      const status = await invoke<"missing" | "api" | "chatgpt">(
+        "check_codex_auth",
+        { path: session.codexHome }
+      );
+      setLoginStatusMap((prev) => ({ ...prev, [session.id]: status }));
+    } catch (error) {
+      setLoginStatusMap((prev) => ({ ...prev, [session.id]: "missing" }));
+    }
+  };
+
+  const pollLoginStatus = (session: SessionConfig) => {
+    if (session.loginType !== "chatgpt") {
+      return;
+    }
+    let attempts = 0;
+    const run = async () => {
+      attempts += 1;
+      let status: "missing" | "api" | "chatgpt" = "missing";
+      try {
+        status = await invoke<"missing" | "api" | "chatgpt">(
+          "check_codex_auth",
+          { path: session.codexHome }
+        );
+        setLoginStatusMap((prev) => ({ ...prev, [session.id]: status }));
+      } catch (error) {
+        setLoginStatusMap((prev) => ({ ...prev, [session.id]: "missing" }));
+      }
+      if (status === "chatgpt" || attempts >= 15) {
+        return;
+      }
+      window.setTimeout(run, 2000);
+    };
+    window.setTimeout(run, 1200);
+  };
 
   useEffect(() => {
     if (!status) {
@@ -138,6 +262,16 @@ const App = () => {
     );
   }, [config.ideProfiles, searchValue]);
 
+  const resolveStatusTone = (value: string): "success" | "error" | "neutral" => {
+    if (/失败|错误|无法|失败/i.test(value)) {
+      return "error";
+    }
+    if (/完成|已|成功|打开/i.test(value)) {
+      return "success";
+    }
+    return "neutral";
+  };
+
   const tabs = [
     { id: "sessions", label: "会话", count: config.sessions.length },
     { id: "terminals", label: "终端", count: config.terminalProfiles.length },
@@ -178,15 +312,42 @@ const App = () => {
       defaultSessionId: config.defaultSessionId ?? session.id,
     };
 
+    let ensureFailed = false;
+    let resolvedHome: string | null = null;
     try {
-      setConfig(next);
+      resolvedHome = await invoke<string>("ensure_codex_home", {
+        path: session.codexHome,
+      });
+    } catch (error) {
+      ensureFailed = true;
+    }
+
+    setConfig(next);
+    setEditorOpen(false);
+    setEditingSession(null);
+
+    let statusText = ensureFailed
+      ? "目录创建失败"
+      : exists
+        ? "会话已更新"
+        : "会话已创建";
+    try {
       await configService.save(next);
-      setEditorOpen(false);
-      setEditingSession(null);
-      setStatus(exists ? "会话已更新" : "会话已创建");
     } catch (error) {
       setStatus("保存失败");
+      return;
     }
+
+    if (!ensureFailed) {
+      try {
+        await writeCodexConfigFile(session, resolvedHome);
+        await writeCodexAuthFile(session, resolvedHome);
+        refreshLoginStatus(session).catch(() => undefined);
+      } catch (error) {
+        statusText = `${statusText}，Codex 配置写入失败`;
+      }
+    }
+    setStatus(statusText);
   };
 
   const handleDeleteSession = async (sessionId: string) => {
@@ -261,12 +422,12 @@ const App = () => {
       ideProfiles: isTerminal ? config.ideProfiles : (nextList as IdeProfile[]),
     };
 
+    setConfig(next);
+    setProfileEditorOpen(false);
+    setEditingProfile(null);
+    setStatus(exists ? "配置已更新" : "配置已创建");
     try {
-      setConfig(next);
       await configService.save(next);
-      setProfileEditorOpen(false);
-      setEditingProfile(null);
-      setStatus(exists ? "配置已更新" : "配置已创建");
     } catch (error) {
       setStatus("配置保存失败");
     }
@@ -322,12 +483,51 @@ const App = () => {
     }
   };
 
-  const handleLaunchTerminal = async (session: SessionConfig) => {
+  const handleLaunchTerminal = async (
+    session: SessionConfig,
+    profile?: TerminalProfile
+  ) => {
     try {
-      await invoke("launch_terminal", { workingDir: session.codexHome });
-      setStatus("终端已打开");
+      if (profile?.command) {
+        const installed = await invoke<boolean>("check_app_installed", {
+          app: profile.command,
+        });
+        if (!installed) {
+          setStatus(`未检测到终端应用：${profile.command}`);
+          return;
+        }
+      }
+      const resolvedHome = await invoke<string>("ensure_codex_home", {
+        path: session.codexHome,
+      });
+      const mergedEnv = sanitizeEnvForLoginType(session, {
+        ...(profile?.env ?? {}),
+        ...(session.env ?? {}),
+      });
+      if (resolvedHome) {
+        mergedEnv.CODEX_HOME = resolvedHome;
+      }
+      let configFailed = false;
+      try {
+        await writeCodexConfigFile(session, resolvedHome ?? null);
+        await writeCodexAuthFile(session, resolvedHome ?? null);
+      } catch (error) {
+        configFailed = true;
+      }
+      await invoke("launch_terminal", {
+        app: profile?.command,
+        args: profile?.args,
+        workingDir: resolvedHome,
+        command: session.launchCommand,
+        env: Object.keys(mergedEnv).length ? mergedEnv : undefined,
+      });
+      if (session.loginType === "chatgpt") {
+        refreshLoginStatus(session).catch(() => undefined);
+      }
+      setStatus(configFailed ? "终端已打开，但 Codex 配置写入失败" : "终端已打开");
     } catch (error) {
-      setStatus("终端启动失败");
+      const message = error instanceof Error ? error.message : String(error);
+      setStatus(message ? `终端启动失败：${message}` : "终端启动失败");
     }
   };
 
@@ -335,6 +535,7 @@ const App = () => {
     try {
       await invoke("launch_ide", {
         app: profile?.command ?? "Visual Studio Code",
+        args: profile?.args,
         targetPath: session.codexHome,
       });
       setStatus("IDE 已打开");
@@ -343,12 +544,45 @@ const App = () => {
     }
   };
 
-  const handleEnsureHome = async (session: SessionConfig) => {
+  const handleLogin = async (
+    session: SessionConfig,
+    profile?: TerminalProfile
+  ) => {
+    if (session.loginType !== "chatgpt") {
+      setStatus("API 登录请在环境变量中配置 OPENAI_API_KEY。");
+      return;
+    }
     try {
-      await invoke("ensure_codex_home", { path: session.codexHome });
-      setStatus("登录准备完成");
+      const resolvedHome = await invoke<string>("ensure_codex_home", {
+        path: session.codexHome,
+      });
+      const mergedEnv = sanitizeEnvForLoginType(session, {
+        ...(profile?.env ?? {}),
+        ...(session.env ?? {}),
+      });
+      if (resolvedHome) {
+        mergedEnv.CODEX_HOME = resolvedHome;
+      }
+      let configFailed = false;
+      try {
+        await writeCodexConfigFile(session, resolvedHome ?? null);
+        await writeCodexAuthFile(session, resolvedHome ?? null);
+      } catch (error) {
+        configFailed = true;
+      }
+      await invoke("launch_terminal", {
+        app: profile?.command,
+        args: profile?.args,
+        workingDir: resolvedHome,
+        command: "codex login",
+        env: Object.keys(mergedEnv).length ? mergedEnv : undefined,
+      });
+      pollLoginStatus(session);
+      setStatus(
+        configFailed ? "已打开官方登录，但 Codex 配置写入失败" : "已打开官方登录"
+      );
     } catch (error) {
-      setStatus("登录准备失败");
+      setStatus("官方登录启动失败");
     }
   };
 
@@ -418,7 +652,13 @@ const App = () => {
         </div>
         <SegmentTabs items={tabs} activeId={activeTab} onChange={setActiveTab} />
         <div className="top-actions">
-          {status ? <span className="top-status">{status}</span> : null}
+          {status ? (
+            <span
+              className={`top-status top-status-${resolveStatusTone(status)}`}
+            >
+              {status}
+            </span>
+          ) : null}
           <button type="button" className="btn btn-ghost" onClick={handleRevealConfig}>
             配置目录
           </button>
@@ -477,10 +717,11 @@ const App = () => {
             terminalProfiles={config.terminalProfiles}
             ideProfiles={config.ideProfiles}
             defaultSessionId={config.defaultSessionId}
+            loginStatusMap={loginStatusMap}
             onCreateSession={handleCreateSession}
             onLaunchTerminal={handleLaunchTerminal}
             onLaunchIde={handleLaunchIde}
-            onEnsureHome={handleEnsureHome}
+            onLogin={handleLogin}
             onRevealHome={handleRevealHome}
             onEditSession={handleEditSession}
           />

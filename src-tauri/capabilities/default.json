@@ -8,6 +8,10 @@
     "opener:default",
     "shell:default",
     "fs:default",
+    "fs:allow-appconfig-read",
+    "fs:allow-appconfig-write",
+    "fs:allow-appconfig-write-recursive",
+    "fs:allow-appconfig-meta",
     "dialog:default"
   ]
 }

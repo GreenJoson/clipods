@@ -22,6 +22,12 @@
   --color-link-hover: #2149a8;
   --color-accent: #2b59c3;
   --color-accent-soft: #d7e4ff;
+  --color-status-success: #1d4ed8;
+  --color-status-success-bg: #e0e9ff;
+  --color-status-error: #b91c1c;
+  --color-status-error-bg: #fee2e2;
+  --color-status-warning: #b45309;
+  --color-status-warning-bg: #fde8c7;
   --color-shadow: rgba(15, 23, 42, 0.2);
   --color-button-border-hover: #2b59c3;
   --color-button-active-bg: #e2e8f0;

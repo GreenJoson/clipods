@@ -1,6 +1,6 @@
 /**
  * @input  依赖：./styles/fonts.css, ./styles/theme.css
- * @output 导出：全局基础样式, 字体基线, 动效辅助类
+ * @output 导出：全局基础样式, 字体基线, 动效辅助类, 开发错误提示
  * @pos    全局样式入口
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
@@ -40,6 +40,53 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+.dev-error-overlay,
+.dev-error-fallback {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--color-shadow) 40%, transparent);
+  padding: var(--space-lg);
+}
+
+.dev-error-card {
+  width: min(760px, 92vw);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.dev-error-title {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  color: var(--color-text-primary);
+}
+
+.dev-error-body {
+  margin: 0;
+  padding: var(--space-sm);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-canvas);
+  font-family: "SFMono-Regular", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--color-text-primary);
+}
+
+.dev-error-tip {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
 }
 
 img,

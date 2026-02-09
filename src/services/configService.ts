@@ -1,5 +1,5 @@
 /**
- * @input  依赖：配置类型、session 模型、TOML 工具、路径工具
+ * @input  依赖：配置类型、session 模型、TOML 工具、路径工具、读取工具
  * @output 导出：configService API 与序列化函数
  * @pos    配置加载与保存的核心服务
  *
@@ -42,9 +42,6 @@ const createDefaultConfig = (): AppConfig => ({
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
-
-const readString = (value: unknown, fallback: string): string =>
-  typeof value === "string" ? value : fallback;
 
 const readStringOptional = (value: unknown): string | undefined =>
   typeof value === "string" && value.length > 0 ? value : undefined;

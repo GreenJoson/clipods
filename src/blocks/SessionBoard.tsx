@@ -1,5 +1,5 @@
 /**
- * @input  依赖：SessionCard, EmptyState, 配置类型
+ * @input  依赖：SessionCard, EmptyState, 配置类型, 启动配置, 登录入口, 登录状态
  * @output 导出：SessionBoard 区块
  * @pos    会话列表布局与空态控制
  *
@@ -14,10 +14,11 @@ interface SessionBoardProps {
   terminalProfiles: TerminalProfile[];
   ideProfiles: IdeProfile[];
   defaultSessionId?: string;
+  loginStatusMap: Record<string, "missing" | "api" | "chatgpt">;
   onCreateSession: () => void;
-  onLaunchTerminal: (session: SessionConfig) => void;
+  onLaunchTerminal: (session: SessionConfig, profile?: TerminalProfile) => void;
   onLaunchIde: (session: SessionConfig, profile?: IdeProfile) => void;
-  onEnsureHome: (session: SessionConfig) => void;
+  onLogin: (session: SessionConfig, profile?: TerminalProfile) => void;
   onRevealHome: (session: SessionConfig) => void;
   onEditSession: (session: SessionConfig) => void;
 }
@@ -27,10 +28,11 @@ const SessionBoard = ({
   terminalProfiles,
   ideProfiles,
   defaultSessionId,
+  loginStatusMap,
   onCreateSession,
   onLaunchTerminal,
   onLaunchIde,
-  onEnsureHome,
+  onLogin,
   onRevealHome,
   onEditSession,
 }: SessionBoardProps) => {
@@ -56,6 +58,7 @@ const SessionBoard = ({
         <SessionCard
           key={session.id}
           session={session}
+          loginStatus={loginStatusMap[session.id]}
           terminalProfile={
             session.terminalProfileId
               ? terminalMap.get(session.terminalProfileId)
@@ -68,7 +71,7 @@ const SessionBoard = ({
           delayMs={index * 80}
           onLaunchTerminal={onLaunchTerminal}
           onLaunchIde={onLaunchIde}
-          onEnsureHome={onEnsureHome}
+          onLogin={onLogin}
           onRevealHome={onRevealHome}
           onEdit={onEditSession}
         />

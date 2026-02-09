@@ -20,6 +20,8 @@ const sampleConfig: AppConfig = {
       loginType: "chatgpt",
       terminalProfileId: "terminal-default",
       ideProfileId: "ide-vscode",
+      launchCommand: "codex resume 123",
+      extraConfigToml: "model_provider = \"custom\"",
       env: {
         CODEX_ENV: "prod",
       },

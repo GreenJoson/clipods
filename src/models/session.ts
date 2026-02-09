@@ -1,6 +1,6 @@
 /**
  * @input  依赖：SessionConfig 类型
- * @output 导出：session 规范化与构建工具
+ * @output 导出：session 规范化与构建工具（含启动命令与高级 TOML）
  * @pos    Session 配置模型的处理层
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
@@ -48,7 +48,12 @@ export const createSession = (
   loginType: input.loginType ?? DEFAULT_LOGIN_TYPE,
   terminalProfileId: input.terminalProfileId,
   ideProfileId: input.ideProfileId,
+  launchCommand: input.launchCommand,
   env: input.env && Object.keys(input.env).length > 0 ? { ...input.env } : undefined,
+  extraConfigToml:
+    input.extraConfigToml && input.extraConfigToml.trim()
+      ? input.extraConfigToml
+      : undefined,
 });
 
 export const normalizeSession = (value: unknown): SessionConfig | null => {
@@ -70,6 +75,8 @@ export const normalizeSession = (value: unknown): SessionConfig | null => {
     loginType: readLoginType(value.loginType),
     terminalProfileId: readStringOptional(value.terminalProfileId),
     ideProfileId: readStringOptional(value.ideProfileId),
+    launchCommand: readStringOptional(value.launchCommand),
     env: readStringRecord(value.env),
+    extraConfigToml: readStringOptional(value.extraConfigToml),
   });
 };

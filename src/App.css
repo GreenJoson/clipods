@@ -1,6 +1,6 @@
 /**
  * @input  依赖：./styles/theme.css
- * @output 导出：应用主界面样式
+ * @output 导出：应用主界面样式（含紧凑卡片、粘性顶栏与滚动容器）
  * @pos    启动器 UI 视觉与布局定义
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
@@ -13,6 +13,8 @@
   flex-direction: column;
   gap: var(--space-xl);
   min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .surface {
@@ -29,8 +31,9 @@
   gap: var(--space-lg);
   padding: var(--space-lg) var(--space-xl);
   position: sticky;
-  top: var(--space-lg);
+  top: 0;
   backdrop-filter: blur(16px);
+  z-index: 30;
 }
 
 .brand {
@@ -84,12 +87,58 @@
   background: var(--color-bg-canvas);
   border-radius: var(--radius-pill);
   padding: var(--space-2xs) var(--space-sm);
+  border: 1px solid transparent;
+}
+
+.top-status-success {
+  color: var(--color-status-success);
+  background: var(--color-status-success-bg);
+  border-color: color-mix(in srgb, var(--color-status-success) 20%, transparent);
+}
+
+.top-status-error {
+  color: var(--color-status-error);
+  background: var(--color-status-error-bg);
+  border-color: color-mix(in srgb, var(--color-status-error) 20%, transparent);
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 0.72rem;
+  border: 1px solid transparent;
+  line-height: 1;
+}
+
+.status-pill-success {
+  color: var(--color-status-success);
+  background: var(--color-status-success-bg);
+  border-color: color-mix(in srgb, var(--color-status-success) 20%, transparent);
+}
+
+.status-pill-error {
+  color: var(--color-status-error);
+  background: var(--color-status-error-bg);
+  border-color: color-mix(in srgb, var(--color-status-error) 20%, transparent);
+}
+
+.status-pill-warning {
+  color: var(--color-status-warning);
+  background: var(--color-status-warning-bg);
+  border-color: color-mix(in srgb, var(--color-status-warning) 20%, transparent);
 }
 
 .content {
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-bottom: var(--space-xl);
 }
 
 .toolbar {
@@ -207,11 +256,11 @@
 }
 
 .session-card {
-  display: grid;
-  grid-template-columns: 1.6fr 1fr 1fr auto;
-  gap: var(--space-md);
-  align-items: center;
-  padding: var(--space-md) var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  align-items: stretch;
+  padding: var(--space-sm) var(--space-md);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -279,10 +328,59 @@
   gap: var(--space-xs);
 }
 
+.session-kv-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-xs);
+}
+
+.session-kv-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-2xs) var(--space-xs);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-canvas);
+}
+
+.session-kv-label {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  min-width: 4.5rem;
+}
+
+.session-kv-value {
+  font-size: 0.88rem;
+  color: var(--color-text-primary);
+  flex: 1;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-kv-wide {
+  grid-column: 1 / -1;
+}
+
+.session-kv-mono {
+  font-family: "SFMono-Regular", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-kv-wide .session-kv-value {
+  text-align: left;
+}
+
 .session-actions {
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
+  gap: var(--space-2xs);
   flex-wrap: wrap;
   justify-content: flex-end;
 }
@@ -312,7 +410,7 @@
   place-items: center;
   padding: var(--space-lg);
   background: color-mix(in srgb, var(--color-shadow) 35%, transparent);
-  z-index: 20;
+  z-index: 80;
 }
 
 .modal-card {
@@ -321,6 +419,10 @@
   border-radius: var(--radius-xl);
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  max-height: min(86vh, 860px);
+  overflow: hidden;
 }
 
 .modal-header {
@@ -344,6 +446,9 @@
 
 .modal-body {
   padding: var(--space-lg);
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 
 .modal-footer {
@@ -375,6 +480,75 @@
   color: var(--color-text-muted);
 }
 
+.field-label-row {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2xs);
+}
+
+.help-anchor {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.help-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: 0.65rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.mode-help-pop {
+  position: absolute;
+  top: 22px;
+  left: -4px;
+  z-index: 30;
+  width: min(320px, 60vw);
+}
+
+.mode-help-card {
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-size: 12px;
+  color: var(--color-text-muted);
+  display: grid;
+  gap: var(--space-2xs);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.08);
+}
+
+.mode-help-caret {
+  position: absolute;
+  top: -5px;
+  left: 10px;
+  width: 10px;
+  height: 10px;
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border);
+  border-top: 1px solid var(--color-border);
+  transform: rotate(45deg);
+}
+
+.mode-help-title {
+  font-size: 12px;
+  color: var(--color-text);
+}
+
+.mode-help-example {
+  font-size: 11px;
+  color: var(--color-text);
+}
+
 .field-input {
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
@@ -382,9 +556,100 @@
   padding: var(--space-xs) var(--space-sm);
 }
 
+.field-help {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.mono {
+  font-family: "SFMono-Regular", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
 .field-textarea {
   resize: vertical;
   min-height: 110px;
+}
+
+.command-builder {
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--color-border);
+  background: var(--color-bg-canvas);
+}
+
+.command-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+
+.toggle-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.toggle-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2xs);
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.command-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+
+.command-preview-box {
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.command-preview-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.env-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-sm);
+}
+
+.env-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+
+.env-inline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.env-inline .field-input {
+  flex: 1;
+}
+
+.env-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  margin-top: var(--space-xs);
 }
 
 .full-span {
@@ -394,11 +659,6 @@
 @media (max-width: 1100px) {
   .app-shell {
     padding: var(--space-xl) var(--space-lg);
-  }
-
-  .session-card {
-    grid-template-columns: 1fr;
-    align-items: flex-start;
   }
 
   .profile-card {
@@ -427,6 +687,18 @@
   }
 
   .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .command-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .env-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .session-kv-grid {
     grid-template-columns: 1fr;
   }
 }
