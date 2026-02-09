@@ -17,4 +17,4 @@
 | public | 资源 | 静态资源 |
 | docs | 文档 | 项目文档 |
 | .vscode | 配置 | 编辑器配置 |
-| .gitignore | 配置 | Git 忽略规则 |
+| .gitignore | 配置 | Git 忽略规则（含本地配置排除） |

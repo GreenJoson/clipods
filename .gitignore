@@ -25,3 +25,11 @@ dist-ssr
 *.sw?
 .serena/
 .worktrees/
+
+# Local Codex/Clipods config (never commit)
+.codex/
+.codex_api/
+codex/
+codex_api/
+config.toml
+auth.json
