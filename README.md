@@ -69,7 +69,89 @@ npm run tauri dev
 2. 按 Tauri Updater 规范生成 `latest.json` 并上传到 GitHub Release。
 3. 应用内点击“检查更新”即可从 GitHub 获取更新。
 
+## 截图
+
+![clipods](public/screenshot/screenshot_cn_1.jpg)
+![clipods](public/screenshot/Jietu20260209-165010@2x.jpg)
+![clipods](public/screenshot/Jietu20260209-165018@2x.jpg)
+![clipods](public/screenshot/screenshot_en_1.jpg)
+
 ## Documentation Rules
 
 - Any structural change (new/removed/moved files or folders) must update the relevant `_README.md` in each affected directory.
 - Any change to functionality, architecture, or coding conventions must update the related sub-docs in the same change set.
+
+## English
+
+clipods: a multi-session launcher for Codex CLI (Tauri + React). Default UI language is Chinese; use the ZH/EN toggle near the logo to switch.
+
+### Core features
+
+- Multi-account sessions: each session has its own `CODEX_HOME` and login type (Official/API).
+- Terminal & IDE profiles: define launch command and arguments per tool.
+- Import/Export: TOML config import/export for backup and sync.
+- One-click launch: open terminal/IDE and jump to the session directory.
+- Theme/Language: dark mode toggle and ZH/EN switch.
+
+### How to use
+
+1. Create a session: set name, `CODEX_HOME`, and login type.
+2. Terminal profile: enter app name or `.app` path (Terminal, iTerm2, `/Applications/Warp.app`); drag & drop supported.
+3. IDE profile: enter app name or `.app` path (VS Code, Cursor, `/Applications/Cursor.app`).
+4. Bind profiles: pick terminal/IDE for the session, then save.
+5. Import/Export: use the toolbar to import/export TOML.
+6. Session launch command: set `codex ...` command to run automatically on terminal launch.
+7. Help: the top-right “Help” shows first-run and update notes.
+
+### Command & arguments
+
+- Launch command uses macOS `open -a`, supports app name or `.app` path.
+  - Examples: `Terminal`, `iTerm2`, `Wave`, `/Applications/Warp.app`
+- Launch args: one per line, equivalent to `open -a App --args arg1 arg2`.
+  - Example: `--reuse-window`
+  - Placeholders: `{command}` for session launch command, `{cwd}` for session directory
+- Wave: when selected and no args are set, it runs commands via `wsh run`.
+- Terminal templates: built-in Terminal / iTerm2 / Wave presets.
+- Environment variables: only terminal profiles support env vars, format `KEY=VALUE`.
+
+### Session command notes
+
+- The “launch command” runs when opening terminal and injects:
+  - `CODEX_HOME` (session directory)
+  - Session environment variables
+- Builder supports interactive / resume / exec / exec & resume with in-UI hints.
+
+### Dev & run
+
+```bash
+npm install
+npm run dev
+npm run tauri dev
+```
+
+> `npm run tauri dev` requires Rust toolchain via rustup.
+
+### macOS first launch (unsigned app)
+
+- If you see “developer cannot be verified”, open “System Settings → Privacy & Security” and click “Open Anyway”.
+- Or right-click the app in Finder → Open.
+
+### Config
+
+- Config is stored under Tauri `appConfigDir()`.
+- Sessions, terminals, IDEs are stored in TOML.
+- Saving a session or opening terminal writes Codex config to `CODEX_HOME/config.toml`.
+- API sessions write `CODEX_HOME/auth.json` with `OPENAI_API_KEY`.
+
+### Updates (GitHub Releases)
+
+1. Generate an updater signature and replace `plugins.updater.pubkey` in `src-tauri/tauri.conf.json`.
+2. Upload `latest.json` following Tauri Updater spec.
+3. Click “Check updates” in the app.
+
+### Screenshots
+
+![clipods](public/screenshot/screenshot_cn_1.jpg)
+![clipods](public/screenshot/Jietu20260209-165010@2x.jpg)
+![clipods](public/screenshot/Jietu20260209-165018@2x.jpg)
+![clipods](public/screenshot/screenshot_en_1.jpg)

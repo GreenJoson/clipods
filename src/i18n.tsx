@@ -548,11 +548,7 @@ const readInitialLocale = (): Locale => {
   if (saved === "zh" || saved === "en") {
     return saved;
   }
-  const language = window.navigator.language.toLowerCase();
-  if (language.startsWith("zh")) {
-    return "zh";
-  }
-  return "en";
+  return "zh";
 };
 
 export const LocaleProvider = ({ children }: { children: ReactNode }) => {
