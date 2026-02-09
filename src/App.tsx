@@ -1,5 +1,5 @@
 /**
- * @input  依赖：React, Tauri API, 配置服务, Codex 配置生成, 登录状态检测, 终端安装检测, 更新检测, UI 组件, 文件系统工具, 启动命令, 登录流程, 目录预创建与 auth.json 写入
+ * @input  依赖：React, Tauri API, 配置服务, Codex 配置生成, 登录状态检测, 终端安装检测, 更新检测, 平台检测, UI 组件, 文件系统工具, 启动命令, 登录流程, 目录预创建与 auth.json 写入
  * @output 导出：App 组件
  * @pos    启动器 UI 主入口与状态协调
  *
@@ -8,6 +8,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
+import { platform } from "@tauri-apps/api/os";
 import { appConfigDir } from "@tauri-apps/api/path";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { mkdir, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
@@ -19,6 +20,7 @@ import ProfileToolbar from "./components/ProfileToolbar";
 import EmptyState from "./components/EmptyState";
 import ProfileEditor, { type ProfileKind } from "./components/ProfileEditor";
 import ProfileCard from "./components/ProfileCard";
+import Modal from "./components/Modal";
 import SessionEditor from "./components/SessionEditor";
 import SessionBoard from "./blocks/SessionBoard";
 import { createConfigService, parseConfig, serializeConfig } from "./services/configService";
@@ -43,6 +45,7 @@ const App = () => {
   const [searchValue, setSearchValue] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState<string>("");
+  const [showFirstRunNotice, setShowFirstRunNotice] = useState(false);
   const [loading, setLoading] = useState(true);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<SessionConfig | null>(
@@ -143,6 +146,26 @@ const App = () => {
           setAppVersion("");
         }
       });
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const dismissed = localStorage.getItem("clipods.firstRunNotice.dismissed");
+    if (dismissed === "1") {
+      return () => {
+        active = false;
+      };
+    }
+    platform()
+      .then((value) => {
+        if (active && value === "macos") {
+          setShowFirstRunNotice(true);
+        }
+      })
+      .catch(() => undefined);
     return () => {
       active = false;
     };
@@ -677,8 +700,48 @@ const App = () => {
     }
   };
 
+  const handleDismissFirstRunNotice = (persist: boolean) => {
+    if (persist) {
+      localStorage.setItem("clipods.firstRunNotice.dismissed", "1");
+    }
+    setShowFirstRunNotice(false);
+  };
+
   return (
     <div className="app-shell">
+      <Modal
+        open={showFirstRunNotice}
+        title="首次启动提示（macOS）"
+        description="未签名应用首次启动需要手动允许。"
+        onClose={() => handleDismissFirstRunNotice(false)}
+        footer={
+          <div className="modal-footer-actions">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => handleDismissFirstRunNotice(true)}
+            >
+              不再提示
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => handleDismissFirstRunNotice(false)}
+            >
+              知道了
+            </button>
+          </div>
+        }
+      >
+        <div className="first-run-notice">
+          <p>如果提示“无法验证开发者”，请按以下方式操作：</p>
+          <ol>
+            <li>打开“系统设置 → 隐私与安全”。</li>
+            <li>在“已阻止”提示旁点击“仍要打开”。</li>
+            <li>或在 Finder 里右键 App → 打开，再确认一次。</li>
+          </ol>
+        </div>
+      </Modal>
       <header className="topbar surface motion-rise-in">
         <div className="brand">
           <div className="brand-badge">C</div>

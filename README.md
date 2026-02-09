@@ -49,6 +49,11 @@ npm run tauri dev
 
 > `npm run tauri dev` 需要 Rust 工具链（已在本地通过 rustup 安装）。
 
+## macOS 首次启动说明（未签名）
+
+- 第一次打开若提示“无法验证开发者”，请进入“系统设置 → 隐私与安全”，在提示旁点击“仍要打开”。
+- 或在 Finder 中右键 App → 打开，再确认一次即可。
+
 ## 配置说明
 
 - 配置文件保存在系统应用配置目录（由 Tauri `appConfigDir()` 决定）。
