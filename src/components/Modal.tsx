@@ -1,7 +1,7 @@
 /**
- * @input  依赖：React
+ * @input  依赖：React, 弹窗尺寸与样式类
  * @output 导出：Modal 组件
- * @pos    通用弹窗容器
+ * @pos    通用弹窗容器（支持紧凑样式）
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
@@ -13,6 +13,8 @@ interface ModalProps {
   description?: string;
   children: ReactNode;
   footer?: ReactNode;
+  size?: "default" | "compact";
+  className?: string;
   onClose: () => void;
 }
 
@@ -22,6 +24,8 @@ const Modal = ({
   description,
   children,
   footer,
+  size = "default",
+  className,
   onClose,
 }: ModalProps) => {
   if (!open) {
@@ -39,7 +43,11 @@ const Modal = ({
       aria-labelledby={titleId}
       aria-describedby={description ? descriptionId : undefined}
     >
-      <div className="modal-card motion-rise-in">
+      <div
+        className={`modal-card motion-rise-in ${
+          size === "compact" ? "modal-compact" : ""
+        } ${className ?? ""}`}
+      >
         <header className="modal-header">
           <div>
             <div className="modal-title" id={titleId}>

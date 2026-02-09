@@ -6,7 +6,7 @@
 |-------|------|------|
 | _README.md | 文档 | 本目录说明 |
 | EmptyState.tsx | 基础 | 空状态提示组件 |
-| Modal.tsx | 基础 | 通用弹窗容器 |
+| Modal.tsx | 基础 | 通用弹窗容器（支持紧凑样式） |
 | ProfileCard.tsx | 核心 | 终端与 IDE 配置展示 |
 | ProfileEditor.tsx | 核心 | 终端与 IDE 配置编辑弹窗（支持 .app 拖拽、Wave 提示、终端模板与应用安装检测） |
 | ProfileToolbar.tsx | 核心 | 终端与 IDE 配置工具栏 |

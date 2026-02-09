@@ -117,6 +117,18 @@
   font-size: 0.85rem;
 }
 
+.confirm-summary {
+  font-size: 0.85rem;
+  color: var(--color-text);
+}
+
+.confirm-target {
+  margin-top: var(--space-2xs);
+  font-size: 0.9rem;
+  color: var(--color-text);
+  font-weight: 600;
+}
+
 .inline-link {
   background: transparent;
   border: none;
@@ -484,6 +496,41 @@
   flex-direction: column;
   max-height: min(86vh, 860px);
   overflow: hidden;
+}
+
+.modal-card.modal-compact {
+  width: min(420px, 92vw);
+  border-radius: var(--radius-lg);
+}
+
+.modal-card.modal-compact .modal-header,
+.modal-card.modal-compact .modal-body,
+.modal-card.modal-compact .modal-footer {
+  padding-left: var(--space-md);
+  padding-right: var(--space-md);
+}
+
+.modal-card.modal-compact .modal-header {
+  padding-top: var(--space-md);
+  padding-bottom: var(--space-sm);
+}
+
+.modal-card.modal-compact .modal-body {
+  padding-top: var(--space-sm);
+  padding-bottom: var(--space-sm);
+}
+
+.modal-card.modal-compact .modal-footer {
+  padding-top: var(--space-sm);
+  padding-bottom: var(--space-sm);
+}
+
+.modal-card.modal-compact .modal-title {
+  font-size: 1rem;
+}
+
+.modal-card.modal-compact .modal-description {
+  font-size: 0.8rem;
 }
 
 .modal-header {

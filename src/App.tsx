@@ -1023,12 +1023,9 @@ const App = () => {
             ? "删除终端配置"
             : "删除 IDE 配置"
         }
-        description={
-          pendingProfileDelete?.kind === "terminal"
-            ? "关联会话将清除终端设置。"
-            : "关联会话将清除 IDE 设置。"
-        }
+        description="关联会话的设置将被清空。"
         onClose={cancelDeleteProfile}
+        size="compact"
         footer={
           <div className="modal-footer-actions">
             <button type="button" className="btn btn-ghost" onClick={cancelDeleteProfile}>
@@ -1040,11 +1037,11 @@ const App = () => {
           </div>
         }
       >
-        <div className="help-notice">
-          <section>
-            <h4>即将删除</h4>
-            <p>{pendingProfileDelete?.name ?? "-"}</p>
-          </section>
+        <div className="confirm-summary">
+          即将删除
+          <div className="confirm-target">
+            {pendingProfileDelete?.name ?? "-"}
+          </div>
         </div>
       </Modal>
     </div>
