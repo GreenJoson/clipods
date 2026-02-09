@@ -13,6 +13,7 @@ import { open, save } from "@tauri-apps/plugin-dialog";
 import { mkdir, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { check as checkForUpdates } from "@tauri-apps/plugin-updater";
 import "./App.css";
+import logoImg from "./assets/logo.png";
 import SegmentTabs from "./components/SegmentTabs";
 import Toolbar from "./components/Toolbar";
 import ProfileToolbar from "./components/ProfileToolbar";
@@ -835,7 +836,7 @@ const App = () => {
       </Modal>
       <header className="topbar surface motion-rise-in">
         <div className="brand">
-          <div className="brand-badge">C</div>
+          <img src={logoImg} alt="CLIPods" className="brand-logo" />
           <div className="brand-copy">
             <span className="brand-title">clipods</span>
             <span className="brand-subtitle">
