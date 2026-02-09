@@ -1,5 +1,5 @@
 /**
- * @input  依赖：React, Tauri API, 配置服务, Codex 配置生成, 登录状态检测, 终端安装检测, 更新检测, 平台检测, 帮助说明/删除确认弹窗, UI 组件, 文件系统工具, 启动命令, 登录流程, 目录预创建与 auth.json 写入, 终端配置引导与回填
+ * @input  依赖：React, Tauri API, 配置服务, Codex 配置生成, 登录状态检测, 终端安装检测, Codex.app 启动, 更新检测, 平台检测, 帮助说明/删除确认弹窗, i18n, 主题切换, UI 组件, 文件系统工具, 启动命令, 登录流程, 目录预创建与 auth.json 写入, 终端配置引导与回填
  * @output 导出：App 组件
  * @pos    启动器 UI 主入口与状态协调
  *
@@ -25,6 +25,7 @@ import SessionEditor from "./components/SessionEditor";
 import SessionBoard from "./blocks/SessionBoard";
 import { createConfigService, parseConfig, serializeConfig } from "./services/configService";
 import { buildCodexConfig } from "./services/codexConfig";
+import { useI18n } from "./i18n";
 import type {
   AppConfig,
   IdeProfile,
@@ -69,6 +70,18 @@ const App = () => {
   const [editingProfile, setEditingProfile] = useState<
     TerminalProfile | IdeProfile | null
   >(null);
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window === "undefined") {
+      return "light";
+    }
+    const saved = window.localStorage.getItem("clipods.theme");
+    if (saved === "light" || saved === "dark") {
+      return saved;
+    }
+    const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+    return prefersDark ? "dark" : "light";
+  });
+  const { t, locale, setLocale } = useI18n();
 
   const fileClient = useMemo(
     () => ({
@@ -231,6 +244,25 @@ const App = () => {
     return filtered;
   };
 
+  const resolveCodexAppPath = (session: SessionConfig): string => {
+    const trimmed = session.codexAppPath?.trim();
+    return trimmed && trimmed.length > 0 ? trimmed : "/Applications/Codex.app";
+  };
+
+  const resolveCodexAppUserDataDir = (
+    session: SessionConfig,
+    resolvedHome: string
+  ): string | undefined => {
+    const explicit = session.codexAppUserDataDir?.trim();
+    if (explicit) {
+      return explicit;
+    }
+    if (session.codexAppAllowMultiple) {
+      return `${resolvedHome.replace(/\/+$/u, "")}/app_data`;
+    }
+    return undefined;
+  };
+
   const refreshLoginStatus = async (session: SessionConfig) => {
     if (session.loginType !== "chatgpt") {
       setLoginStatusMap((prev) => ({ ...prev, [session.id]: "api" }));
@@ -280,6 +312,14 @@ const App = () => {
     return () => window.clearTimeout(timer);
   }, [status]);
 
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem("clipods.theme", theme);
+  }, [theme]);
+
   const filteredSessions = useMemo(() => {
     if (!searchValue) {
       return config.sessions;
@@ -317,19 +357,19 @@ const App = () => {
   }, [config.ideProfiles, searchValue]);
 
   const resolveStatusTone = (value: string): "success" | "error" | "neutral" => {
-    if (/失败|错误|无法|失败/i.test(value)) {
+    if (/失败|错误|无法|失败|fail|error|unable|forbidden|not found|missing/i.test(value)) {
       return "error";
     }
-    if (/完成|已|成功|打开/i.test(value)) {
+    if (/完成|已|成功|打开|done|opened|updated|created|saved|downloaded|installed|complete/i.test(value)) {
       return "success";
     }
     return "neutral";
   };
 
   const tabs = [
-    { id: "sessions", label: "会话", count: config.sessions.length },
-    { id: "terminals", label: "终端", count: config.terminalProfiles.length },
-    { id: "ides", label: "IDE", count: config.ideProfiles.length },
+    { id: "sessions", label: t("tab.sessions"), count: config.sessions.length },
+    { id: "terminals", label: t("tab.terminals"), count: config.terminalProfiles.length },
+    { id: "ides", label: t("tab.ides"), count: config.ideProfiles.length },
   ];
 
   const handleCreateSession = async () => {
@@ -337,13 +377,13 @@ const App = () => {
       const id = `session-${Date.now()}`;
       setEditingSession({
         id,
-        name: `新会话 ${config.sessions.length + 1}`,
+        name: t("session.defaultName", { index: config.sessions.length + 1 }),
         codexHome: "~/.codex",
         loginType: "chatgpt",
       });
       setEditorOpen(true);
     } catch (error) {
-      setStatus("创建会话失败");
+      setStatus(t("status.createSessionFailed"));
     }
   };
 
@@ -381,14 +421,14 @@ const App = () => {
     setEditingSession(null);
 
     let statusText = ensureFailed
-      ? "目录创建失败"
+      ? t("status.directoryCreateFailed")
       : exists
-        ? "会话已更新"
-        : "会话已创建";
+        ? t("status.sessionUpdated")
+        : t("status.sessionCreated");
     try {
       await configService.save(next);
     } catch (error) {
-      setStatus("保存失败");
+      setStatus(t("status.sessionSaveFailed"));
       return;
     }
 
@@ -398,14 +438,14 @@ const App = () => {
         await writeCodexAuthFile(session, resolvedHome);
         refreshLoginStatus(session).catch(() => undefined);
       } catch (error) {
-        statusText = `${statusText}，Codex 配置写入失败`;
+        statusText = t("status.codexConfigWriteFailed", { prefix: statusText });
       }
     }
     setStatus(statusText);
   };
 
   const handleDeleteSession = async (sessionId: string) => {
-    const confirmed = window.confirm("确定删除该会话？此操作不可撤销。");
+    const confirmed = window.confirm(t("modal.delete.confirmSession"));
     if (!confirmed) {
       return;
     }
@@ -426,9 +466,9 @@ const App = () => {
       await configService.save(next);
       setEditorOpen(false);
       setEditingSession(null);
-      setStatus("会话已删除");
+      setStatus(t("status.sessionDeleted"));
     } catch (error) {
-      setStatus("删除失败");
+      setStatus(t("status.sessionDeleteFailed"));
     }
   };
 
@@ -438,13 +478,13 @@ const App = () => {
       kind === "terminal"
         ? {
             id,
-            name: `新终端 ${config.terminalProfiles.length + 1}`,
+            name: t("profile.defaultTerminalName", { index: config.terminalProfiles.length + 1 }),
             command: "Terminal",
             args: [],
           }
         : {
             id,
-            name: `新 IDE ${config.ideProfiles.length + 1}`,
+            name: t("profile.defaultIdeName", { index: config.ideProfiles.length + 1 }),
             command: "Visual Studio Code",
             args: [],
           };
@@ -504,11 +544,11 @@ const App = () => {
       setEditorOpen(true);
     }
     setPendingProfileSelection(null);
-    setStatus(exists ? "配置已更新" : "配置已创建");
+    setStatus(exists ? t("status.profileUpdated") : t("status.profileCreated"));
     try {
       await configService.save(next);
     } catch (error) {
-      setStatus("配置保存失败");
+      setStatus(t("status.profileSaveFailed"));
     }
   };
 
@@ -548,9 +588,9 @@ const App = () => {
       await configService.save(next);
       setProfileEditorOpen(false);
       setEditingProfile(null);
-      setStatus("配置已删除");
+      setStatus(t("status.profileDeleted"));
     } catch (error) {
-      setStatus("配置删除失败");
+      setStatus(t("status.profileDeleteFailed"));
     }
   };
 
@@ -593,7 +633,7 @@ const App = () => {
           app: profile.command,
         });
         if (!installed) {
-          setStatus(`未检测到终端应用：${profile.command}`);
+          setStatus(t("status.terminalNotFound", { app: profile.command }));
           return;
         }
       }
@@ -624,10 +664,84 @@ const App = () => {
       if (session.loginType === "chatgpt") {
         refreshLoginStatus(session).catch(() => undefined);
       }
-      setStatus(configFailed ? "终端已打开，但 Codex 配置写入失败" : "终端已打开");
+      setStatus(
+        configFailed
+          ? t("status.terminalOpenedConfigFailed")
+          : t("status.terminalOpened")
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      setStatus(message ? `终端启动失败：${message}` : "终端启动失败");
+      setStatus(
+        message
+          ? t("status.terminalLaunchFailed", { message })
+          : t("status.terminalLaunchFailedSimple")
+      );
+    }
+  };
+
+  const handleLaunchCodexApp = async (session: SessionConfig) => {
+    if (!session.codexAppEnabled) {
+      setStatus(t("status.codexAppDisabled"));
+      return;
+    }
+    const appPath = resolveCodexAppPath(session);
+    try {
+      const installed = await invoke<boolean>("check_app_installed", {
+        app: appPath,
+      });
+      if (!installed) {
+        setStatus(t("status.codexAppNotFound", { app: appPath }));
+        return;
+      }
+      const resolvedHome = await invoke<string>("ensure_codex_home", {
+        path: session.codexHome,
+      });
+      const mergedEnv = sanitizeEnvForLoginType(session, {
+        ...(session.env ?? {}),
+      });
+      if (resolvedHome) {
+        mergedEnv.CODEX_HOME = resolvedHome;
+      }
+      const userDataDir = resolveCodexAppUserDataDir(session, resolvedHome);
+      let ensuredUserDataDir: string | undefined;
+      if (userDataDir) {
+        try {
+          ensuredUserDataDir = await invoke<string>("ensure_codex_home", {
+            path: userDataDir,
+          });
+        } catch (error) {
+          setStatus(t("status.userDataDirFailed"));
+          return;
+        }
+      }
+      let configFailed = false;
+      try {
+        await writeCodexConfigFile(session, resolvedHome ?? null);
+        await writeCodexAuthFile(session, resolvedHome ?? null);
+      } catch (error) {
+        configFailed = true;
+      }
+      await invoke("launch_codex_app", {
+        appPath,
+        userDataDir: ensuredUserDataDir ?? userDataDir,
+        allowMultiple: session.codexAppAllowMultiple,
+        env: Object.keys(mergedEnv).length ? mergedEnv : undefined,
+      });
+      if (session.loginType === "chatgpt") {
+        refreshLoginStatus(session).catch(() => undefined);
+      }
+      setStatus(
+        configFailed
+          ? t("status.codexAppOpenedConfigFailed")
+          : t("status.codexAppOpened")
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setStatus(
+        message
+          ? t("status.codexAppLaunchFailed", { message })
+          : t("status.codexAppLaunchFailedSimple")
+      );
     }
   };
 
@@ -638,9 +752,9 @@ const App = () => {
         args: profile?.args,
         targetPath: session.codexHome,
       });
-      setStatus("IDE 已打开");
+      setStatus(t("status.ideOpened"));
     } catch (error) {
-      setStatus("IDE 启动失败");
+      setStatus(t("status.ideLaunchFailed"));
     }
   };
 
@@ -649,7 +763,7 @@ const App = () => {
     profile?: TerminalProfile
   ) => {
     if (session.loginType !== "chatgpt") {
-      setStatus("API 登录请在环境变量中配置 OPENAI_API_KEY。");
+      setStatus(t("status.apiLoginHint"));
       return;
     }
     try {
@@ -679,10 +793,12 @@ const App = () => {
       });
       pollLoginStatus(session);
       setStatus(
-        configFailed ? "已打开官方登录，但 Codex 配置写入失败" : "已打开官方登录"
+        configFailed
+          ? t("status.loginOpenedConfigFailed")
+          : t("status.loginOpened")
       );
     } catch (error) {
-      setStatus("官方登录启动失败");
+      setStatus(t("status.loginLaunchFailed"));
     }
   };
 
@@ -690,7 +806,7 @@ const App = () => {
     try {
       await invoke("reveal_path", { path: session.codexHome });
     } catch (error) {
-      setStatus("打开目录失败");
+      setStatus(t("status.openDirFailed"));
     }
   };
 
@@ -699,9 +815,9 @@ const App = () => {
       await configService.save(config);
       const configPath = await configService.getConfigPath();
       await invoke("reveal_path", { path: configPath });
-      setStatus("配置目录已打开");
+      setStatus(t("status.configDirOpened"));
     } catch (error) {
-      setStatus("打开配置失败");
+      setStatus(t("status.configOpenFailed"));
     }
   };
 
@@ -718,9 +834,9 @@ const App = () => {
       const parsed = parseConfig(contents);
       setConfig(parsed);
       await configService.save(parsed);
-      setStatus("导入完成");
+      setStatus(t("status.importDone"));
     } catch (error) {
-      setStatus("导入失败");
+      setStatus(t("status.importFailed"));
     }
   };
 
@@ -734,25 +850,25 @@ const App = () => {
         return;
       }
       await writeTextFile(target, serializeConfig(config));
-      setStatus("导出完成");
+      setStatus(t("status.exportDone"));
     } catch (error) {
-      setStatus("导出失败");
+      setStatus(t("status.exportFailed"));
     }
   };
 
   const handleCheckUpdates = async () => {
     try {
-      setStatus("正在检查更新…");
+      setStatus(t("status.updateChecking"));
       const update = await checkForUpdates();
       if (!update) {
-        setStatus("当前已是最新版本");
+        setStatus(t("status.upToDate"));
         return;
       }
-      setStatus(`发现更新 v${update.version}，正在下载…`);
+      setStatus(t("status.updateFound", { version: update.version }));
       await update.downloadAndInstall();
-      setStatus("更新已下载，重启应用完成安装");
+      setStatus(t("status.updateDownloaded"));
     } catch (error) {
-      setStatus("更新检查失败");
+      setStatus(t("status.updateCheckFailed"));
     }
   };
 
@@ -775,8 +891,8 @@ const App = () => {
     <div className="app-shell">
       <Modal
         open={showFirstRunNotice}
-        title="首次启动提示（macOS）"
-        description="未签名应用首次启动需要手动允许。"
+        title={t("modal.firstRun.title")}
+        description={t("modal.firstRun.desc")}
         onClose={() => handleDismissFirstRunNotice(false)}
         footer={
           <div className="modal-footer-actions">
@@ -785,52 +901,52 @@ const App = () => {
               className="btn btn-ghost"
               onClick={() => handleDismissFirstRunNotice(true)}
             >
-              不再提示
+              {t("modal.firstRun.dismiss")}
             </button>
             <button
               type="button"
               className="btn btn-primary"
               onClick={() => handleDismissFirstRunNotice(false)}
             >
-              知道了
+              {t("modal.firstRun.ok")}
             </button>
           </div>
         }
       >
         <div className="first-run-notice">
-          <p>如果提示“无法验证开发者”，请按以下方式操作：</p>
+          <p>{t("modal.firstRun.stepIntro")}</p>
           <ol>
-            <li>打开“系统设置 → 隐私与安全”。</li>
-            <li>在“已阻止”提示旁点击“仍要打开”。</li>
-            <li>或在 Finder 里右键 App → 打开，再确认一次。</li>
+            <li>{t("modal.firstRun.step1")}</li>
+            <li>{t("modal.firstRun.step2")}</li>
+            <li>{t("modal.firstRun.step3")}</li>
           </ol>
         </div>
       </Modal>
       <Modal
         open={showHelpModal}
-        title="使用说明"
-        description="常见问题与首次启动指引。"
+        title={t("modal.help.title")}
+        description={t("modal.help.desc")}
         onClose={handleCloseHelp}
         footer={
           <div className="modal-footer-actions">
             <button type="button" className="btn btn-primary" onClick={handleCloseHelp}>
-              关闭
+              {t("modal.help.close")}
             </button>
           </div>
         }
       >
         <div className="help-notice">
           <section>
-            <h4>macOS 首次启动</h4>
-            <p>若提示“无法验证开发者”，请进入“系统设置 → 隐私与安全”，点击“仍要打开”。</p>
+            <h4>{t("help.section.mac.title")}</h4>
+            <p>{t("help.section.mac.body")}</p>
           </section>
           <section>
-            <h4>会话隔离</h4>
-            <p>每个会话绑定独立的 CODEX_HOME，配置与登录互不影响。</p>
+            <h4>{t("help.section.isolation.title")}</h4>
+            <p>{t("help.section.isolation.body")}</p>
           </section>
           <section>
-            <h4>更新</h4>
-            <p>点击右上角“检查更新”，从 GitHub Releases 获取最新版本。</p>
+            <h4>{t("help.section.update.title")}</h4>
+            <p>{t("help.section.update.body")}</p>
           </section>
         </div>
       </Modal>
@@ -840,11 +956,40 @@ const App = () => {
           <div className="brand-copy">
             <span className="brand-title">clipods</span>
             <span className="brand-subtitle">
-              多会话启动器
+              {t("brand.subtitle")}
               <span className="brand-version">
                 {appVersion ? `v${appVersion}` : "v--"}
               </span>
             </span>
+          </div>
+          <div className="brand-toggle-group">
+            <button
+              type="button"
+              className="toggle-pill"
+              onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+              title={t("toggle.theme")}
+              aria-label={t("toggle.theme")}
+            >
+              {theme === "light" ? (
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 3v2M12 19v2M5 5l1.4 1.4M17.6 17.6L19 19M3 12h2M19 12h2M5 19l1.4-1.4M17.6 6.4L19 5" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M21 14.5A7.5 7.5 0 0 1 9.5 3a9 9 0 1 0 11.5 11.5z" />
+                </svg>
+              )}
+            </button>
+            <button
+              type="button"
+              className="toggle-pill toggle-lang"
+              onClick={() => setLocale(locale === "zh" ? "en" : "zh")}
+              title={t("toggle.locale")}
+              aria-label={t("toggle.locale")}
+            >
+              {locale === "zh" ? "ZH" : "EN"}
+            </button>
           </div>
         </div>
         <SegmentTabs items={tabs} activeId={activeTab} onChange={setActiveTab} />
@@ -857,13 +1002,13 @@ const App = () => {
             </span>
           ) : null}
           <button type="button" className="btn btn-ghost" onClick={handleOpenHelp}>
-            帮助
+            {t("action.help")}
           </button>
           <button type="button" className="btn btn-ghost" onClick={handleCheckUpdates}>
-            检查更新
+            {t("action.checkUpdates")}
           </button>
           <button type="button" className="btn btn-ghost" onClick={handleRevealConfig}>
-            配置目录
+            {t("action.openConfigDir")}
           </button>
         </div>
       </header>
@@ -878,40 +1023,59 @@ const App = () => {
           <Toolbar
             searchValue={searchValue}
             onSearchChange={setSearchValue}
-            totalCount={config.sessions.length}
-            filteredCount={filteredSessions.length}
             onImport={handleImport}
             onExport={handleExport}
             onCreateSession={handleCreateSession}
             onRevealConfig={handleRevealConfig}
+            labels={{
+              searchPlaceholder: t("toolbar.searchSessions.placeholder"),
+              searchAria: t("toolbar.searchSessions.aria"),
+              total: t("toolbar.total", { count: config.sessions.length }),
+              filtered: t("toolbar.show", { count: filteredSessions.length }),
+              openConfig: t("toolbar.openConfigDir"),
+              import: t("toolbar.import"),
+              export: t("toolbar.export"),
+              createSession: t("toolbar.createSession"),
+            }}
           />
         ) : (
           <ProfileToolbar
             searchValue={searchValue}
             onSearchChange={setSearchValue}
-            totalCount={
-              activeTab === "terminals"
-                ? config.terminalProfiles.length
-                : config.ideProfiles.length
-            }
-            filteredCount={
-              activeTab === "terminals"
-                ? filteredTerminalProfiles.length
-                : filteredIdeProfiles.length
-            }
             actionLabel={
-              activeTab === "terminals" ? "新建终端配置" : "新建 IDE 配置"
+              activeTab === "terminals"
+                ? t("empty.terminals.action")
+                : t("empty.ides.action")
             }
             onCreate={() =>
               handleCreateProfile(
                 activeTab === "terminals" ? "terminal" : "ide"
               )
             }
+            labels={{
+              searchPlaceholder: t("profileToolbar.search.placeholder"),
+              searchAria: t("profileToolbar.search.aria"),
+              total: t("profileToolbar.total", {
+                count:
+                  activeTab === "terminals"
+                    ? config.terminalProfiles.length
+                    : config.ideProfiles.length,
+              }),
+              filtered: t("profileToolbar.show", {
+                count:
+                  activeTab === "terminals"
+                    ? filteredTerminalProfiles.length
+                    : filteredIdeProfiles.length,
+              }),
+            }}
           />
         )}
 
         {loading ? (
-          <EmptyState title="加载中" description="正在读取配置…" />
+          <EmptyState
+            title={t("empty.loading.title")}
+            description={t("empty.loading.desc")}
+          />
         ) : null}
 
         {!loading && activeTab === "sessions" ? (
@@ -924,6 +1088,7 @@ const App = () => {
             onCreateSession={handleCreateSession}
             onLaunchTerminal={handleLaunchTerminal}
             onLaunchIde={handleLaunchIde}
+            onLaunchCodexApp={handleLaunchCodexApp}
             onLogin={handleLogin}
             onRevealHome={handleRevealHome}
             onEditSession={handleEditSession}
@@ -937,7 +1102,7 @@ const App = () => {
                 <ProfileCard
                   key={profile.id}
                   profile={profile}
-                  kindLabel="终端"
+                  kindLabel={t("tab.terminals")}
                   delayMs={index * 70}
                   onEdit={() => handleEditProfile("terminal", profile)}
                   onDelete={() => requestDeleteProfile("terminal", profile)}
@@ -946,9 +1111,9 @@ const App = () => {
             </div>
           ) : (
             <EmptyState
-              title="还没有终端配置"
-              description="添加你常用的终端与启动参数，例如 iTerm2、Warp。"
-              actionLabel="新建终端配置"
+              title={t("empty.terminals.title")}
+              description={t("empty.terminals.desc")}
+              actionLabel={t("empty.terminals.action")}
               onAction={() => handleCreateProfile("terminal")}
             />
           )
@@ -961,7 +1126,7 @@ const App = () => {
                 <ProfileCard
                   key={profile.id}
                   profile={profile}
-                  kindLabel="IDE"
+                  kindLabel={t("tab.ides")}
                   delayMs={index * 70}
                   onEdit={() => handleEditProfile("ide", profile)}
                   onDelete={() => requestDeleteProfile("ide", profile)}
@@ -970,9 +1135,9 @@ const App = () => {
             </div>
           ) : (
             <EmptyState
-              title="还没有 IDE 配置"
-              description="添加 VS Code、Cursor 或 Antigravity 的启动命令。"
-              actionLabel="新建 IDE 配置"
+              title={t("empty.ides.title")}
+              description={t("empty.ides.desc")}
+              actionLabel={t("empty.ides.action")}
               onAction={() => handleCreateProfile("ide")}
             />
           )
@@ -1021,25 +1186,25 @@ const App = () => {
         open={Boolean(pendingProfileDelete)}
         title={
           pendingProfileDelete?.kind === "terminal"
-            ? "删除终端配置"
-            : "删除 IDE 配置"
+            ? t("modal.deleteTerminal.title")
+            : t("modal.deleteIde.title")
         }
-        description="关联会话的设置将被清空。"
+        description={t("modal.delete.desc")}
         onClose={cancelDeleteProfile}
         size="compact"
         footer={
           <div className="modal-footer-actions">
             <button type="button" className="btn btn-ghost" onClick={cancelDeleteProfile}>
-              取消
+              {t("modal.delete.cancel")}
             </button>
             <button type="button" className="btn btn-primary" onClick={confirmDeleteProfile}>
-              确认删除
+              {t("modal.delete.confirm")}
             </button>
           </div>
         }
       >
         <div className="confirm-summary">
-          即将删除
+          {t("modal.delete.prefix")}
           <div className="confirm-target">
             {pendingProfileDelete?.name ?? "-"}
           </div>

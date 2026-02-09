@@ -1,11 +1,12 @@
 /**
- * @input  依赖：React, 弹窗尺寸与样式类
+ * @input  依赖：React, 弹窗尺寸与样式类, i18n
  * @output 导出：Modal 组件
  * @pos    通用弹窗容器（支持紧凑样式）
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
 import { useId, type ReactNode } from "react";
+import { useI18n } from "../i18n";
 
 interface ModalProps {
   open: boolean;
@@ -32,6 +33,7 @@ const Modal = ({
     return null;
   }
 
+  const { t } = useI18n();
   const titleId = useId();
   const descriptionId = useId();
 
@@ -60,7 +62,7 @@ const Modal = ({
             ) : null}
           </div>
           <button type="button" className="btn btn-ghost" onClick={onClose}>
-            关闭
+            {t("common.close")}
           </button>
         </header>
         <div className="modal-body">{children}</div>

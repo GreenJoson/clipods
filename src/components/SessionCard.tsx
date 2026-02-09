@@ -1,11 +1,12 @@
 /**
- * @input  依赖：React, 配置类型, 启动配置, 登录入口, 登录状态, 项目路径正则解析, 紧凑布局
+ * @input  依赖：React, 配置类型, 启动配置, 登录入口, 登录状态, Codex.app 启动, 项目路径正则解析, 紧凑布局, i18n
  * @output 导出：SessionCard 组件
  * @pos    会话卡片展示与操作
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
 import type { IdeProfile, SessionConfig, TerminalProfile } from "../types/config";
+import { useI18n } from "../i18n";
 
 const parseProjectPath = (command?: string): string | null => {
   if (!command) {
@@ -27,6 +28,7 @@ interface SessionCardProps {
   delayMs?: number;
   onLaunchTerminal: (session: SessionConfig, profile?: TerminalProfile) => void;
   onLaunchIde: (session: SessionConfig, profile?: IdeProfile) => void;
+  onLaunchCodexApp: (session: SessionConfig) => void;
   onLogin: (session: SessionConfig, profile?: TerminalProfile) => void;
   onRevealHome: (session: SessionConfig) => void;
   onEdit: (session: SessionConfig) => void;
@@ -41,17 +43,19 @@ const SessionCard = ({
   delayMs,
   onLaunchTerminal,
   onLaunchIde,
+  onLaunchCodexApp,
   onLogin,
   onRevealHome,
   onEdit,
 }: SessionCardProps) => {
+  const { t } = useI18n();
   const loginStatusLabel = (() => {
     if (session.loginType === "chatgpt") {
-      if (loginStatus === "chatgpt") return "已登录";
-      return "未登录";
+      if (loginStatus === "chatgpt") return t("session.value.loginStatus.loggedIn");
+      return t("session.value.loginStatus.notLoggedIn");
     }
-    if (loginStatus === "api") return "已配置";
-    return "未配置";
+    if (loginStatus === "api") return t("session.value.loginStatus.configured");
+    return t("session.value.loginStatus.notConfigured");
   })();
 
   const loginStatusTone = (() => {
@@ -63,6 +67,15 @@ const SessionCard = ({
     return "warning";
   })();
 
+  const codexAppStatus = session.codexAppEnabled
+    ? t("session.value.codexApp.enabled")
+    : t("session.value.codexApp.disabled");
+  const codexAppDetail = session.codexAppEnabled
+    ? session.codexAppAllowMultiple
+      ? t("session.value.codexApp.multi")
+      : t("session.value.codexApp.single")
+    : "";
+
   return (
     <div
       className="session-card motion-rise-in"
@@ -71,62 +84,88 @@ const SessionCard = ({
       <div className="session-meta">
         <div className="session-title">
           {session.name}
-          {isDefault ? <span className="badge badge-accent">默认</span> : null}
+          {isDefault ? (
+            <span className="badge badge-accent">{t("common.default")}</span>
+          ) : null}
         </div>
         <div className="session-path">{session.codexHome}</div>
       </div>
       <div className="session-kv-grid">
         <div className="session-kv-item">
-          <span className="session-kv-label">登录方式</span>
+          <span className="session-kv-label">{t("session.label.loginMethod")}</span>
           <span className="session-kv-value">
-            {session.loginType === "chatgpt" ? "官方登录" : "API 登录"}
+            {session.loginType === "chatgpt"
+              ? t("session.value.loginMethod.chatgpt")
+              : t("session.value.loginMethod.api")}
           </span>
         </div>
         <div className="session-kv-item">
-          <span className="session-kv-label">登录状态</span>
+          <span className="session-kv-label">{t("session.label.loginStatus")}</span>
           <span className={`status-pill status-pill-${loginStatusTone}`}>
             {loginStatusLabel}
           </span>
         </div>
         <div className="session-kv-item">
-          <span className="session-kv-label">终端</span>
+          <span className="session-kv-label">{t("session.label.terminal")}</span>
           <span className="session-kv-value">
-            {terminalProfile?.name ?? "未设置"}
+            {terminalProfile?.name ?? t("common.notSet")}
           </span>
         </div>
         <div className="session-kv-item">
-          <span className="session-kv-label">IDE</span>
-          <span className="session-kv-value">{ideProfile?.name ?? "未设置"}</span>
+          <span className="session-kv-label">{t("session.label.ide")}</span>
+          <span className="session-kv-value">
+            {ideProfile?.name ?? t("common.notSet")}
+          </span>
         </div>
         <div className="session-kv-item">
-          <span className="session-kv-label">启动方式</span>
+          <span className="session-kv-label">{t("session.label.launcher")}</span>
           <span className="session-kv-value">
             {terminalProfile?.command ?? "open -a Terminal"}
           </span>
         </div>
         <div className="session-kv-item">
-          <span className="session-kv-label">环境变量</span>
+          <span className="session-kv-label">{t("session.label.env")}</span>
           <span className="session-kv-value">
             {session.loginType === "api"
               ? session.env
-                ? `${Object.keys(session.env).length} 项`
-                : "无"
-              : "无需"}
+                ? t("session.value.env.items", {
+                    count: Object.keys(session.env).length,
+                  })
+                : t("session.value.env.none")
+              : t("session.value.env.noneRequired")}
           </span>
         </div>
         <div className="session-kv-item">
-          <span className="session-kv-label">项目路径</span>
+          <span className="session-kv-label">{t("session.label.codexApp")}</span>
           <span className="session-kv-value">
-            {parseProjectPath(session.launchCommand) ?? "未设置"}
+            {codexAppStatus}
+            {codexAppDetail ? ` / ${codexAppDetail}` : ""}
+          </span>
+        </div>
+        {session.codexAppEnabled ? (
+          <div className="session-kv-item">
+            <span className="session-kv-label">{t("session.label.appPath")}</span>
+            <span className="session-kv-value">
+              {session.codexAppPath ?? t("session.value.appPath.default")}
+            </span>
+          </div>
+        ) : null}
+        <div className="session-kv-item">
+          <span className="session-kv-label">{t("session.label.projectPath")}</span>
+          <span className="session-kv-value">
+            {parseProjectPath(session.launchCommand) ??
+              t("session.value.projectPath.default")}
           </span>
         </div>
         <div className="session-kv-item session-kv-wide">
-          <span className="session-kv-label">启动命令</span>
+          <span className="session-kv-label">{t("session.label.launchCommand")}</span>
           <span
             className="session-kv-value session-kv-mono"
-            title={session.launchCommand ?? "未设置"}
+            title={
+              session.launchCommand ?? t("session.value.launchCommand.default")
+            }
           >
-            {session.launchCommand ?? "未设置"}
+            {session.launchCommand ?? t("session.value.launchCommand.default")}
           </span>
         </div>
       </div>
@@ -137,7 +176,16 @@ const SessionCard = ({
           className="btn"
           onClick={() => onLogin(session, terminalProfile)}
         >
-          官方登录
+          {t("session.action.login")}
+        </button>
+      ) : null}
+      {session.codexAppEnabled ? (
+        <button
+          type="button"
+          className="btn"
+          onClick={() => onLaunchCodexApp(session)}
+        >
+          {t("session.action.openCodexApp")}
         </button>
       ) : null}
       <button
@@ -145,24 +193,24 @@ const SessionCard = ({
         className="btn btn-secondary"
         onClick={() => onLaunchTerminal(session, terminalProfile)}
       >
-        打开终端
+        {t("session.action.openTerminal")}
       </button>
       <button
         type="button"
         className="btn"
         onClick={() => onLaunchIde(session, ideProfile)}
       >
-        打开 IDE
+        {t("session.action.openIde")}
       </button>
       <button type="button" className="btn" onClick={() => onEdit(session)}>
-        编辑
+        {t("session.action.edit")}
       </button>
       <button
         type="button"
         className="btn btn-ghost"
         onClick={() => onRevealHome(session)}
       >
-        打开目录
+        {t("session.action.openDir")}
       </button>
       </div>
     </div>

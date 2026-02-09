@@ -1,5 +1,5 @@
 /**
- * @input  依赖：React, Modal, 配置类型, 表单辅助, 启动命令构建器, 环境变量快捷填充, 高级 TOML, 提示弹层, 终端配置引导
+ * @input  依赖：React, Modal, 配置类型, 表单辅助, 启动命令构建器, 环境变量快捷填充, 高级 TOML, Codex.app 设置, 提示弹层, 终端配置引导, i18n
  * @output 导出：SessionEditor 组件
  * @pos    会话创建与编辑弹窗
  *
@@ -13,6 +13,7 @@ import type {
   SessionConfig,
   TerminalProfile,
 } from "../types/config";
+import { useI18n } from "../i18n";
 
 interface SessionEditorProps {
   open: boolean;
@@ -77,32 +78,6 @@ type ModeHint = {
   title: string;
   description: string;
   example: string;
-};
-
-const MODE_HINTS: Record<LaunchMode, ModeHint> = {
-  interactive: {
-    title: "交互模式",
-    description:
-      "进入交互会话（无子命令），可叠加 --cd、--dangerously-bypass-approvals-and-sandbox 等参数。",
-    example: "codex --cd /path/to/project",
-  },
-  resume: {
-    title: "恢复会话",
-    description:
-      "继续已有会话，可配 --last / --all 直接定位最近或全部会话。",
-    example: "codex resume <session-id>",
-  },
-  exec: {
-    title: "一次性执行",
-    description: "执行一条指令后退出，不进入持续对话。",
-    example: "codex exec \"你的指令\"",
-  },
-  "exec-resume": {
-    title: "执行并恢复",
-    description:
-      "在已有会话上下文中执行一次性指令，可配 --last / --all。",
-    example: "codex exec resume <session-id> \"你的指令\"",
-  },
 };
 
 const splitLines = (value: string): string[] =>
@@ -266,6 +241,7 @@ const SessionEditor = ({
   onCancel,
   onDelete,
 }: SessionEditorProps) => {
+  const { t } = useI18n();
   const [name, setName] = useState(session.name);
   const [codexHome, setCodexHome] = useState(session.codexHome);
   const [loginType, setLoginType] = useState<SessionAuthType>(session.loginType);
@@ -275,6 +251,18 @@ const SessionEditor = ({
   const [ideProfileId, setIdeProfileId] = useState(session.ideProfileId ?? "");
   const [launchCommand, setLaunchCommand] = useState(
     session.launchCommand ?? ""
+  );
+  const [codexAppEnabled, setCodexAppEnabled] = useState(
+    session.codexAppEnabled ?? false
+  );
+  const [codexAppPath, setCodexAppPath] = useState(
+    session.codexAppPath ?? ""
+  );
+  const [codexAppUserDataDir, setCodexAppUserDataDir] = useState(
+    session.codexAppUserDataDir ?? ""
+  );
+  const [codexAppAllowMultiple, setCodexAppAllowMultiple] = useState(
+    session.codexAppAllowMultiple ?? false
   );
   const [envText, setEnvText] = useState(buildEnvText(session.env));
   const [builderMode, setBuilderMode] = useState<LaunchMode>("interactive");
@@ -312,6 +300,10 @@ const SessionEditor = ({
     setTerminalProfileId(session.terminalProfileId ?? "");
     setIdeProfileId(session.ideProfileId ?? "");
     setLaunchCommand(session.launchCommand ?? "");
+    setCodexAppEnabled(session.codexAppEnabled ?? false);
+    setCodexAppPath(session.codexAppPath ?? "");
+    setCodexAppUserDataDir(session.codexAppUserDataDir ?? "");
+    setCodexAppAllowMultiple(session.codexAppAllowMultiple ?? false);
     setEnvText(buildEnvText(session.env));
     setBuilderMode("interactive");
     setBuilderProfile("");
@@ -388,7 +380,30 @@ const SessionEditor = ({
     useAll: builderUseAll,
   };
 
-  const modeHint = MODE_HINTS[builderMode];
+  const modeHints: Record<LaunchMode, ModeHint> = {
+    interactive: {
+      title: t("modeHint.interactive.title"),
+      description: t("modeHint.interactive.desc"),
+      example: t("modeHint.interactive.example"),
+    },
+    resume: {
+      title: t("modeHint.resume.title"),
+      description: t("modeHint.resume.desc"),
+      example: t("modeHint.resume.example"),
+    },
+    exec: {
+      title: t("modeHint.exec.title"),
+      description: t("modeHint.exec.desc"),
+      example: t("modeHint.exec.example"),
+    },
+    "exec-resume": {
+      title: t("modeHint.execResume.title"),
+      description: t("modeHint.execResume.desc"),
+      example: t("modeHint.execResume.example"),
+    },
+  };
+
+  const modeHint = modeHints[builderMode];
 
   const resolveLaunchCommand = (): string | undefined => {
     const trimmed = launchCommand.trim();
@@ -433,6 +448,13 @@ const SessionEditor = ({
     launchCommand: resolveLaunchCommand(),
     env: resolveEnv(),
     extraConfigToml: extraConfigToml.trim() ? extraConfigToml : undefined,
+    codexAppEnabled: codexAppEnabled ? true : undefined,
+    codexAppPath: codexAppPath.trim() ? codexAppPath.trim() : undefined,
+    codexAppUserDataDir: codexAppUserDataDir.trim()
+      ? codexAppUserDataDir.trim()
+      : undefined,
+    codexAppAllowMultiple:
+      codexAppEnabled && codexAppAllowMultiple ? true : undefined,
   });
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -480,8 +502,10 @@ const SessionEditor = ({
   return (
     <Modal
       open={open}
-      title={isNew ? "新建会话" : "编辑会话"}
-      description="为每个账号配置独立的登录方式与启动参数。"
+      title={
+        isNew ? t("sessionEditor.title.new") : t("sessionEditor.title.edit")
+      }
+      description={t("sessionEditor.desc")}
       onClose={onCancel}
       footer={
         <div className="modal-footer-actions">
@@ -491,45 +515,47 @@ const SessionEditor = ({
               className="btn btn-ghost"
               onClick={() => onDelete(session.id)}
             >
-              删除
+              {t("common.delete")}
             </button>
           ) : null}
           <button type="button" className="btn btn-ghost" onClick={onCancel}>
-            取消
+            {t("common.cancel")}
           </button>
           <button
             type="button"
             className="btn btn-primary"
             onClick={handleSaveClick}
           >
-            保存
+            {t("common.save")}
           </button>
         </div>
       }
     >
       <form id="session-form" className="form-grid" onSubmit={handleSubmit}>
         <label className="form-field">
-          <span className="field-label">会话名称</span>
+          <span className="field-label">{t("sessionEditor.field.name")}</span>
           <input
             className="field-input"
             value={name}
             onChange={(event) => setName(event.currentTarget.value)}
-            placeholder="例如：ChatGPT 主账号"
+            placeholder={t("sessionEditor.placeholder.name")}
             required
           />
         </label>
         <label className="form-field">
-          <span className="field-label">CODEX_HOME</span>
+          <span className="field-label">
+            {t("sessionEditor.field.codexHome")}
+          </span>
           <input
             className="field-input"
             value={codexHome}
             onChange={(event) => setCodexHome(event.currentTarget.value)}
-            placeholder="~/.codex"
+            placeholder={t("sessionEditor.placeholder.codexHome")}
             required
           />
         </label>
         <label className="form-field">
-          <span className="field-label">登录方式</span>
+          <span className="field-label">{t("sessionEditor.field.loginType")}</span>
           <select
             className="field-input"
             value={loginType}
@@ -537,20 +563,20 @@ const SessionEditor = ({
               setLoginType(event.currentTarget.value as SessionAuthType)
             }
           >
-            <option value="chatgpt">官方登录</option>
-            <option value="api">API 登录</option>
+            <option value="chatgpt">{t("sessionEditor.option.login.chatgpt")}</option>
+            <option value="api">{t("sessionEditor.option.login.api")}</option>
           </select>
         </label>
         <label className="form-field">
           <span className="field-label field-label-row">
-            终端配置
+            {t("sessionEditor.field.terminal")}
             {terminalProfiles.length === 0 ? (
               <button
                 type="button"
                 className="inline-link inline-link-danger"
                 onClick={onCreateTerminalProfile}
               >
-                还没有终端配置，点击创建
+                {t("sessionEditor.field.terminal.empty")}
               </button>
             ) : null}
           </span>
@@ -559,7 +585,7 @@ const SessionEditor = ({
             value={terminalProfileId}
             onChange={(event) => setTerminalProfileId(event.currentTarget.value)}
           >
-            <option value="">不指定</option>
+            <option value="">{t("sessionEditor.option.unset")}</option>
             {terminalProfiles.map((profile) => (
               <option key={profile.id} value={profile.id}>
                 {profile.name}
@@ -568,13 +594,13 @@ const SessionEditor = ({
           </select>
         </label>
         <label className="form-field">
-          <span className="field-label">IDE 配置</span>
+          <span className="field-label">{t("sessionEditor.field.ide")}</span>
           <select
             className="field-input"
             value={ideProfileId}
             onChange={(event) => setIdeProfileId(event.currentTarget.value)}
           >
-            <option value="">不指定</option>
+            <option value="">{t("sessionEditor.option.unset")}</option>
             {ideProfiles.map((profile) => (
               <option key={profile.id} value={profile.id}>
                 {profile.name}
@@ -582,30 +608,84 @@ const SessionEditor = ({
             ))}
           </select>
         </label>
+        <div className="form-field full-span">
+          <span className="field-label">{t("sessionEditor.field.codexApp")}</span>
+          <div className="toggle-group">
+            <label className="toggle-line">
+              <input
+                type="checkbox"
+                checked={codexAppEnabled}
+                onChange={(event) =>
+                  setCodexAppEnabled(event.currentTarget.checked)
+                }
+              />
+              {t("sessionEditor.field.codexApp.enable")}
+            </label>
+            <label className="toggle-line">
+              <input
+                type="checkbox"
+                checked={codexAppAllowMultiple}
+                onChange={(event) =>
+                  setCodexAppAllowMultiple(event.currentTarget.checked)
+                }
+                disabled={!codexAppEnabled}
+              />
+              {t("sessionEditor.field.codexApp.multi")}
+            </label>
+          </div>
+          <div className="command-grid">
+            <label className="form-field">
+              <span className="field-label">{t("sessionEditor.field.codexApp.path")}</span>
+              <input
+                className="field-input"
+                value={codexAppPath}
+                onChange={(event) => setCodexAppPath(event.currentTarget.value)}
+                placeholder="/Applications/Codex.app"
+                disabled={!codexAppEnabled}
+              />
+            </label>
+            <label className="form-field">
+              <span className="field-label">
+                {t("sessionEditor.field.codexApp.userDataDir")}
+              </span>
+              <input
+                className="field-input"
+                value={codexAppUserDataDir}
+                onChange={(event) =>
+                  setCodexAppUserDataDir(event.currentTarget.value)
+                }
+                placeholder={t("sessionEditor.field.codexApp.userDataDir.placeholder")}
+                disabled={!codexAppEnabled}
+              />
+            </label>
+          </div>
+          <span className="field-help">{t("sessionEditor.field.codexApp.help")}</span>
+        </div>
         <label className="form-field">
-          <span className="field-label">启动命令（会话级）</span>
+          <span className="field-label">{t("sessionEditor.field.launchCommand")}</span>
           <input
             className="field-input"
             value={launchCommand}
             onChange={(event) => setLaunchCommand(event.currentTarget.value)}
-            placeholder="codex --dangerously-bypass-approvals-and-sandbox resume <session-id>"
+            placeholder={t("sessionEditor.placeholder.launchCommand")}
           />
           <span className="field-help">
-            点击“打开终端”时会自动执行该命令，已注入本会话的
-            <span className="mono">CODEX_HOME</span> 与环境变量。
+            {t("sessionEditor.field.launchCommand.helpPrefix")}
+            <span className="mono">CODEX_HOME</span>
+            {t("sessionEditor.field.launchCommand.helpSuffix")}
           </span>
         </label>
         <div className="form-field full-span command-builder">
-          <span className="field-label">命令快捷生成</span>
+          <span className="field-label">{t("sessionEditor.builder.title")}</span>
           <div className="command-grid">
             <label className="form-field">
               <span className="field-label field-label-row">
-                启动模式
+                {t("sessionEditor.builder.mode")}
                 <span className="help-anchor">
                   <button
                     type="button"
                     className="help-icon"
-                    aria-label="查看启动模式说明"
+                    aria-label={t("sessionEditor.builder.mode.help")}
                     aria-expanded={showModeHelp}
                     onClick={() => setShowModeHelp((prev) => !prev)}
                   >
@@ -632,37 +712,45 @@ const SessionEditor = ({
                   setBuilderMode(event.currentTarget.value as LaunchMode)
                 }
               >
-                <option value="interactive">交互模式</option>
-                <option value="resume">恢复会话</option>
-                <option value="exec">一次性执行</option>
-                <option value="exec-resume">执行并恢复</option>
+                <option value="interactive">
+                  {t("sessionEditor.builder.mode.interactive")}
+                </option>
+                <option value="resume">
+                  {t("sessionEditor.builder.mode.resume")}
+                </option>
+                <option value="exec">
+                  {t("sessionEditor.builder.mode.exec")}
+                </option>
+                <option value="exec-resume">
+                  {t("sessionEditor.builder.mode.execResume")}
+                </option>
               </select>
             </label>
             <label className="form-field">
-              <span className="field-label">提示词 / 指令</span>
+              <span className="field-label">{t("sessionEditor.builder.prompt")}</span>
               <input
                 className="field-input"
                 value={builderPrompt}
                 onChange={(event) => setBuilderPrompt(event.currentTarget.value)}
-                placeholder="例如：总结当前目录代码"
+                placeholder={t("sessionEditor.builder.prompt.placeholder")}
               />
             </label>
             {(builderMode === "resume" || builderMode === "exec-resume") && (
               <label className="form-field">
-                <span className="field-label">会话 ID</span>
+                <span className="field-label">{t("sessionEditor.builder.sessionId")}</span>
                 <input
                   className="field-input"
                   value={builderResumeId}
                   onChange={(event) =>
                     setBuilderResumeId(event.currentTarget.value)
                   }
-                  placeholder="例如：019b8051-e853-7ac1-a58a-4b686e139b1c"
+                  placeholder={t("sessionEditor.builder.sessionId.placeholder")}
                 />
               </label>
             )}
             {(builderMode === "resume" || builderMode === "exec-resume") && (
               <div className="form-field">
-                <span className="field-label">恢复选项</span>
+                <span className="field-label">{t("sessionEditor.builder.resumeOptions")}</span>
                 <div className="toggle-group">
                   <label className="toggle-line">
                     <input
@@ -672,7 +760,7 @@ const SessionEditor = ({
                         setBuilderUseLast(event.currentTarget.checked)
                       }
                     />
-                    使用 --last
+                    {t("sessionEditor.builder.useLast")}
                   </label>
                   <label className="toggle-line">
                     <input
@@ -682,7 +770,7 @@ const SessionEditor = ({
                         setBuilderUseAll(event.currentTarget.checked)
                       }
                     />
-                    使用 --all
+                    {t("sessionEditor.builder.useAll")}
                   </label>
                 </div>
               </div>
@@ -690,44 +778,44 @@ const SessionEditor = ({
           </div>
           <div className="command-grid">
             <label className="form-field">
-              <span className="field-label">--profile</span>
+              <span className="field-label">{t("sessionEditor.builder.profile")}</span>
               <input
                 className="field-input"
                 value={builderProfile}
                 onChange={(event) => setBuilderProfile(event.currentTarget.value)}
-                placeholder="默认账号"
+                placeholder={t("sessionEditor.builder.profile.placeholder")}
               />
             </label>
             <label className="form-field">
-              <span className="field-label">--model</span>
+              <span className="field-label">{t("sessionEditor.builder.model")}</span>
               <input
                 className="field-input"
                 value={builderModel}
                 onChange={(event) => setBuilderModel(event.currentTarget.value)}
-                placeholder="例如：gpt-5"
+                placeholder={t("sessionEditor.builder.model.placeholder")}
               />
             </label>
             <label className="form-field">
-              <span className="field-label">--sandbox</span>
+              <span className="field-label">{t("sessionEditor.builder.sandbox")}</span>
               <select
                 className="field-input"
                 value={builderSandbox}
                 onChange={(event) => setBuilderSandbox(event.currentTarget.value)}
               >
-                <option value="">不指定</option>
+                <option value="">{t("sessionEditor.option.unset")}</option>
                 <option value="read-only">read-only</option>
                 <option value="workspace-write">workspace-write</option>
                 <option value="danger-full-access">danger-full-access</option>
               </select>
             </label>
             <label className="form-field">
-              <span className="field-label">--ask-for-approval</span>
+              <span className="field-label">{t("sessionEditor.builder.approval")}</span>
               <select
                 className="field-input"
                 value={builderApproval}
                 onChange={(event) => setBuilderApproval(event.currentTarget.value)}
               >
-                <option value="">不指定</option>
+                <option value="">{t("sessionEditor.option.unset")}</option>
                 <option value="untrusted">untrusted</option>
                 <option value="on-failure">on-failure</option>
                 <option value="on-request">on-request</option>
@@ -737,7 +825,7 @@ const SessionEditor = ({
           </div>
           <div className="command-grid">
             <div className="form-field">
-              <span className="field-label">开关选项</span>
+              <span className="field-label">{t("sessionEditor.builder.switches")}</span>
               <div className="toggle-group">
                 <label className="toggle-line">
                   <input
@@ -783,7 +871,7 @@ const SessionEditor = ({
           </div>
           <div className="command-grid">
             <label className="form-field">
-              <span className="field-label">--add-dir（多行）</span>
+              <span className="field-label">{t("sessionEditor.builder.addDir")}</span>
               <textarea
                 className="field-input field-textarea"
                 value={builderAddDirs}
@@ -793,7 +881,7 @@ const SessionEditor = ({
               />
             </label>
             <label className="form-field">
-              <span className="field-label">-c 配置覆盖（多行）</span>
+              <span className="field-label">{t("sessionEditor.builder.configs")}</span>
               <textarea
                 className="field-input field-textarea"
                 value={builderConfigs}
@@ -804,7 +892,7 @@ const SessionEditor = ({
             </label>
           </div>
           <div className="command-preview">
-            <span className="field-label">预览命令</span>
+            <span className="field-label">{t("sessionEditor.builder.preview")}</span>
             <div className="command-preview-box mono">
               {commandPreview || "codex"}
             </div>
@@ -814,18 +902,16 @@ const SessionEditor = ({
                 className="btn btn-ghost"
                 onClick={() => setLaunchCommand(commandPreview)}
               >
-                填入启动命令
+                {t("sessionEditor.builder.fillCommand")}
               </button>
             </div>
           </div>
-          <span className="field-help">
-            支持将多个参数组合后写入启动命令，依旧可以手动修改。
-          </span>
+          <span className="field-help">{t("sessionEditor.builder.help")}</span>
         </div>
         {loginType === "api" ? (
           <>
             <label className="form-field full-span">
-              <span className="field-label">常用环境变量</span>
+              <span className="field-label">{t("sessionEditor.env.common")}</span>
               <div className="env-grid">
                 <div className="env-item">
                   <span className="field-label">OPENAI_API_KEY</span>
@@ -845,7 +931,7 @@ const SessionEditor = ({
                         handleInsertEnv({ OPENAI_API_KEY: envApiKey })
                       }
                     >
-                      插入
+                      {t("sessionEditor.env.insert")}
                     </button>
                   </div>
                 </div>
@@ -867,7 +953,7 @@ const SessionEditor = ({
                         handleInsertEnv({ OPENAI_BASE_URL: envBaseUrl })
                       }
                     >
-                      插入
+                      {t("sessionEditor.env.insert")}
                     </button>
                   </div>
                 </div>
@@ -889,7 +975,7 @@ const SessionEditor = ({
                         handleInsertEnv({ OPENAI_MODEL: envModel })
                       }
                     >
-                      插入
+                      {t("sessionEditor.env.insert")}
                     </button>
                   </div>
                 </div>
@@ -913,7 +999,7 @@ const SessionEditor = ({
                         })
                       }
                     >
-                      插入
+                      {t("sessionEditor.env.insert")}
                     </button>
                   </div>
                 </div>
@@ -935,7 +1021,7 @@ const SessionEditor = ({
                         handleInsertEnv({ OPENAI_PROJECT: envProject })
                       }
                     >
-                      插入
+                      {t("sessionEditor.env.insert")}
                     </button>
                   </div>
                 </div>
@@ -946,29 +1032,27 @@ const SessionEditor = ({
                   className="btn btn-ghost"
                   onClick={handleApplyCommonEnv}
                 >
-                  写入全部
+                  {t("sessionEditor.env.writeAll")}
                 </button>
                 <button
                   type="button"
                   className="btn btn-ghost"
                   onClick={handleReadEnvFromCustom}
                 >
-                  从自定义读取
+                  {t("sessionEditor.env.readCustom")}
                 </button>
                 <button
                   type="button"
                   className="btn btn-ghost"
                   onClick={handleResetApiDefaults}
                 >
-                  恢复默认
+                  {t("sessionEditor.env.reset")}
                 </button>
               </div>
-              <span className="field-help">
-                常用环境变量会写入到下方自定义输入框，可继续手动补充或修改。
-              </span>
+              <span className="field-help">{t("sessionEditor.env.commonHelp")}</span>
             </label>
             <label className="form-field full-span">
-              <span className="field-label">环境变量</span>
+              <span className="field-label">{t("sessionEditor.env.custom")}</span>
               <textarea
                 className="field-input field-textarea"
                 value={envText}
@@ -976,10 +1060,10 @@ const SessionEditor = ({
                 placeholder="KEY=value"
                 rows={4}
               />
-              <span className="field-help">格式：KEY=VALUE，每行一个。</span>
+              <span className="field-help">{t("sessionEditor.env.customHelp")}</span>
             </label>
             <label className="form-field full-span">
-              <span className="field-label">高级自定义 TOML（可选）</span>
+              <span className="field-label">{t("sessionEditor.env.advanced")}</span>
               <textarea
                 className="field-input field-textarea"
                 value={extraConfigToml}
@@ -989,22 +1073,17 @@ const SessionEditor = ({
                 placeholder='[features]\ncollab = true'
                 rows={6}
               />
-              <span className="field-help">
-                会追加到自动生成的 config.toml 末尾，用于 features、mcp_servers
-                等高级配置。
-              </span>
+              <span className="field-help">{t("sessionEditor.env.advancedHelp")}</span>
             </label>
           </>
         ) : (
           <>
             <div className="form-field full-span">
-              <span className="field-label">环境变量</span>
-              <span className="field-help">
-                官方登录不需要 API 环境变量。可在会话卡片点击“官方登录”触发浏览器登录。
-              </span>
+              <span className="field-label">{t("sessionEditor.env.custom")}</span>
+              <span className="field-help">{t("sessionEditor.env.chatgptHelp")}</span>
             </div>
             <label className="form-field full-span">
-              <span className="field-label">高级自定义 TOML（可选）</span>
+              <span className="field-label">{t("sessionEditor.env.advanced")}</span>
               <textarea
                 className="field-input field-textarea"
                 value={extraConfigToml}
@@ -1014,10 +1093,7 @@ const SessionEditor = ({
                 placeholder='[features]\ncollab = true'
                 rows={6}
               />
-              <span className="field-help">
-                会追加到自动生成的 config.toml 末尾，用于 features、mcp_servers
-                等高级配置。
-              </span>
+              <span className="field-help">{t("sessionEditor.env.advancedHelp")}</span>
             </label>
           </>
         )}

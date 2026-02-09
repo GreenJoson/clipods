@@ -11,5 +11,5 @@
 | capabilities | 配置 | 权限能力声明 |
 | icons | 资源 | 应用图标资源 |
 | icons_backup | 资源 | 图标备份 |
-| src | 核心 | Rust 业务代码 |
+| src | 核心 | Rust 业务代码（含 Codex.app 启动指令） |
 | .gitignore | 配置 | Tauri 子项目忽略规则 |

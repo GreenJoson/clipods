@@ -1,6 +1,6 @@
 /*
  * @input  依赖：tauri, tauri_plugin_opener, tauri_plugin_shell, tauri_plugin_fs, tauri_plugin_dialog, tauri_plugin_updater, open 启动参数, Wave wsh
- * @output 导出：greet/launch_terminal/launch_ide/ensure_codex_home/write_codex_config/write_codex_auth/check_codex_auth/check_app_installed/reveal_path 命令, run 启动函数（含 Wave 支持与 CODEX_HOME 归一化）
+ * @output 导出：greet/launch_terminal/launch_ide/launch_codex_app/ensure_codex_home/write_codex_config/write_codex_auth/check_codex_auth/check_app_installed/reveal_path 命令, run 启动函数（含 Wave 支持与 CODEX_HOME 归一化）
  * @pos    Tauri 后端命令与启动入口
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
@@ -97,6 +97,64 @@ fn launch_ide(
 }
 
 #[tauri::command]
+fn launch_codex_app(
+    app_path: Option<String>,
+    user_data_dir: Option<String>,
+    allow_multiple: Option<bool>,
+    env: Option<HashMap<String, String>>,
+) -> Result<(), String> {
+    let app_value = app_path
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "/Applications/Codex.app".to_string());
+    let allow_multi = allow_multiple.unwrap_or(false);
+    let env_map = env.unwrap_or_default();
+    let normalized_app = if app_value.contains('/') || app_value.ends_with(".app") {
+        Some(normalize_path(&app_value)?)
+    } else {
+        None
+    };
+    let normalized_user_dir = match user_data_dir {
+        Some(value) if !value.trim().is_empty() => Some(normalize_path(&value)?),
+        _ => None,
+    };
+    if let Some(app_bundle) = normalized_app.as_ref().filter(|path| {
+        path.extension()
+            .and_then(|ext| ext.to_str())
+            .map(|ext| ext == "app")
+            .unwrap_or(false)
+    }) {
+        if let Some(executable) = resolve_app_executable(app_bundle) {
+            let mut command = Command::new(executable);
+            if !env_map.is_empty() {
+                command.envs(env_map.iter());
+            }
+            if let Some(dir) = normalized_user_dir.as_ref() {
+                command.arg("--user-data-dir").arg(dir);
+            }
+            command.spawn().map_err(|err| err.to_string())?;
+            return Ok(());
+        }
+    }
+    let mut open_args: Vec<String> = Vec::new();
+    if allow_multi {
+        open_args.push("-n".to_string());
+    }
+    open_args.push("-a".to_string());
+    if let Some(path) = normalized_app.as_ref() {
+        open_args.push(path_to_string(path)?);
+    } else {
+        open_args.push(app_value);
+    }
+    if let Some(dir) = normalized_user_dir.as_ref() {
+        open_args.push("--args".to_string());
+        open_args.push("--user-data-dir".to_string());
+        open_args.push(path_to_string(dir)?);
+    }
+    run_open_with_env(&open_args, &env_map)
+}
+
+#[tauri::command]
 fn ensure_codex_home(path: Option<String>) -> Result<String, String> {
     let fallback = "~/.codex".to_string();
     let selected = path
@@ -188,6 +246,19 @@ fn reveal_path(path: String) -> Result<(), String> {
         path_to_string(&resolved)?,
     ];
     run_open(&args)
+}
+
+fn resolve_app_executable(app_bundle: &Path) -> Option<PathBuf> {
+    let app_name = app_bundle.file_stem()?.to_string_lossy().to_string();
+    let candidate = app_bundle
+        .join("Contents")
+        .join("MacOS")
+        .join(app_name);
+    if candidate.exists() {
+        Some(candidate)
+    } else {
+        None
+    }
 }
 
 fn normalize_path(raw_path: &str) -> Result<PathBuf, String> {
@@ -403,8 +474,35 @@ fn run_open(args: &[String]) -> Result<(), String> {
     }
 }
 
+#[cfg(target_os = "macos")]
+fn run_open_with_env(args: &[String], env: &HashMap<String, String>) -> Result<(), String> {
+    if env.is_empty() {
+        return run_open(args);
+    }
+    let output = Command::new("open")
+        .args(args)
+        .envs(env.iter())
+        .output()
+        .map_err(|err| err.to_string())?;
+    if output.status.success() {
+        Ok(())
+    } else {
+        let message = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        if message.is_empty() {
+            Err(format!("open failed with status: {}", output.status))
+        } else {
+            Err(message)
+        }
+    }
+}
+
 #[cfg(not(target_os = "macos"))]
 fn run_open(_args: &[String]) -> Result<(), String> {
+    Err("launchers are only supported on macOS".to_string())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn run_open_with_env(_args: &[String], _env: &HashMap<String, String>) -> Result<(), String> {
     Err("launchers are only supported on macOS".to_string())
 }
 
@@ -420,6 +518,7 @@ pub fn run() {
             greet,
             launch_terminal,
             launch_ide,
+            launch_codex_app,
             ensure_codex_home,
             write_codex_config,
             write_codex_auth,

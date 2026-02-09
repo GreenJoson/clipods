@@ -1,5 +1,5 @@
 /**
- * @input  依赖：React, Modal, 配置类型, 拖拽事件 payload, Tauri 窗口事件, 终端模板, 表单说明文本, 终端应用安装检测
+ * @input  依赖：React, Modal, 配置类型, 拖拽事件 payload, Tauri 窗口事件, 终端模板, 表单说明文本, 终端应用安装检测, i18n
  * @output 导出：ProfileEditor 组件
  * @pos    终端与 IDE 配置编辑弹窗
  *
@@ -10,6 +10,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import Modal from "./Modal";
 import type { IdeProfile, TerminalProfile } from "../types/config";
+import { useI18n } from "../i18n";
 
 export type ProfileKind = "terminal" | "ide";
 
@@ -31,28 +32,6 @@ interface ProfileEditorProps {
 }
 
 const buildArgsText = (args?: string[]): string => (args ? args.join("\n") : "");
-
-const TERMINAL_TEMPLATES: TerminalTemplate[] = [
-  { id: "custom", label: "自定义", name: "", command: "" },
-  {
-    id: "terminal",
-    label: "Terminal（内置）",
-    name: "Terminal",
-    command: "Terminal",
-  },
-  {
-    id: "iterm2",
-    label: "iTerm2（内置）",
-    name: "iTerm2",
-    command: "iTerm2",
-  },
-  {
-    id: "wave",
-    label: "Wave（wsh 自动执行）",
-    name: "Wave",
-    command: "Wave",
-  },
-];
 
 const detectTerminalTemplate = (command: string): string => {
   const normalized = command.toLowerCase();
@@ -111,6 +90,7 @@ const ProfileEditor = ({
   onCancel,
   onDelete,
 }: ProfileEditorProps) => {
+  const { t } = useI18n();
   const [name, setName] = useState(profile.name);
   const [command, setCommand] = useState(profile.command);
   const [argsText, setArgsText] = useState(buildArgsText(profile.args));
@@ -123,6 +103,27 @@ const ProfileEditor = ({
   const [appCheckState, setAppCheckState] = useState<
     "idle" | "checking" | "installed" | "missing"
   >("idle");
+  const terminalTemplates: TerminalTemplate[] = [
+    { id: "custom", label: t("profileEditor.template.custom"), name: "", command: "" },
+    {
+      id: "terminal",
+      label: t("profileEditor.template.terminal"),
+      name: "Terminal",
+      command: "Terminal",
+    },
+    {
+      id: "iterm2",
+      label: t("profileEditor.template.iterm2"),
+      name: "iTerm2",
+      command: "iTerm2",
+    },
+    {
+      id: "wave",
+      label: t("profileEditor.template.wave"),
+      name: "Wave",
+      command: "Wave",
+    },
+  ];
 
   useEffect(() => {
     if (!open) {
@@ -218,10 +219,10 @@ const ProfileEditor = ({
         : "warning";
   const appCheckLabel =
     appCheckState === "installed"
-      ? "已检测到应用"
+      ? t("profileEditor.appCheck.installed")
       : appCheckState === "missing"
-        ? "未检测到应用"
-        : "检测中";
+        ? t("profileEditor.appCheck.missing")
+        : t("profileEditor.appCheck.checking");
 
   const handleCommandDrop = (event: DragEvent<HTMLInputElement>) => {
     event.preventDefault();
@@ -267,7 +268,7 @@ const ProfileEditor = ({
     if (value === "custom") {
       return;
     }
-    const template = TERMINAL_TEMPLATES.find((item) => item.id === value);
+    const template = terminalTemplates.find((item) => item.id === value);
     if (!template) {
       return;
     }
@@ -279,8 +280,12 @@ const ProfileEditor = ({
   return (
     <Modal
       open={open}
-      title={kind === "terminal" ? "终端配置" : "IDE 配置"}
-      description="设置启动命令与参数。"
+      title={
+        kind === "terminal"
+          ? t("profileEditor.title.terminal")
+          : t("profileEditor.title.ide")
+      }
+      description={t("profileEditor.desc")}
       onClose={onCancel}
       footer={
         <div className="modal-footer-actions">
@@ -290,14 +295,14 @@ const ProfileEditor = ({
               className="btn btn-ghost"
               onClick={() => onDelete(profile.id)}
             >
-              删除
+              {t("common.delete")}
             </button>
           ) : null}
           <button type="button" className="btn btn-ghost" onClick={onCancel}>
-            取消
+            {t("common.cancel")}
           </button>
           <button type="submit" className="btn btn-primary" form="profile-form">
-            保存
+            {t("common.save")}
           </button>
         </div>
       }
@@ -305,35 +310,37 @@ const ProfileEditor = ({
       <form id="profile-form" className="form-grid" onSubmit={handleSubmit}>
         {kind === "terminal" ? (
           <label className="form-field">
-            <span className="field-label">终端模板</span>
+            <span className="field-label">{t("profileEditor.template.label")}</span>
             <select
               className="field-input"
               value={templateId}
               onChange={(event) => handleTemplateChange(event.currentTarget.value)}
             >
-              {TERMINAL_TEMPLATES.map((template) => (
+              {terminalTemplates.map((template) => (
                 <option key={template.id} value={template.id}>
                   {template.label}
                 </option>
               ))}
             </select>
-            <span className="field-help">
-              选择模板会自动填充名称/启动命令/参数，仍可自行修改。
-            </span>
+            <span className="field-help">{t("profileEditor.template.help")}</span>
           </label>
         ) : null}
         <label className="form-field">
-          <span className="field-label">名称</span>
+          <span className="field-label">{t("profileEditor.field.name")}</span>
           <input
             className="field-input"
             value={name}
             onChange={(event) => setName(event.currentTarget.value)}
-            placeholder={kind === "terminal" ? "iTerm2" : "VS Code"}
+            placeholder={
+              kind === "terminal"
+                ? t("profileEditor.placeholder.name.terminal")
+                : t("profileEditor.placeholder.name.ide")
+            }
             required
           />
         </label>
         <label className="form-field">
-          <span className="field-label">启动命令（可拖拽 .app）</span>
+          <span className="field-label">{t("profileEditor.field.command")}</span>
           <input
             className="field-input"
             value={command}
@@ -342,19 +349,13 @@ const ProfileEditor = ({
             onDragOver={handleCommandDragOver}
             placeholder={
               kind === "terminal"
-                ? "Terminal 或 /Applications/iTerm.app"
-                : "Visual Studio Code 或 /Applications/Cursor.app"
+                ? t("profileEditor.placeholder.command.terminal")
+                : t("profileEditor.placeholder.command.ide")
             }
             required
           />
           <span className="field-help">
-            支持应用名（如 Terminal、iTerm2、Wave）或 .app 路径；内部使用
-            <span className="mono">open -a</span> 启动。
-            可在“启动参数”里使用
-            <span className="mono">{"{command}"}</span> 与
-            <span className="mono">{"{cwd}"}</span> 占位符。
-            Wave 会优先使用
-            <span className="mono">wsh run</span> 执行命令，通常无需填写参数。
+            {t("profileEditor.command.help")}
           </span>
           {appCheckState !== "idle" ? (
             <span className="field-help">
@@ -362,13 +363,13 @@ const ProfileEditor = ({
                 {appCheckLabel}
               </span>
               {appCheckState === "missing"
-                ? " 请确认应用已安装或修改启动命令。"
+                ? ` ${t("profileEditor.command.missing")}`
                 : null}
             </span>
           ) : null}
         </label>
         <label className="form-field full-span">
-          <span className="field-label">启动参数（每行一个）</span>
+          <span className="field-label">{t("profileEditor.args.label")}</span>
           <textarea
             className="field-input field-textarea"
             value={argsText}
@@ -377,14 +378,12 @@ const ProfileEditor = ({
             placeholder="--reuse-window"
           />
           <span className="field-help">
-            每行一个参数，等价于
-            <span className="mono">open -a 应用 --args 参数1 参数2</span>。
-            示例：<span className="mono">--command {"{command}"}</span>
+            {t("profileEditor.args.help")}
           </span>
         </label>
         {kind === "terminal" ? (
           <label className="form-field full-span">
-            <span className="field-label">环境变量</span>
+            <span className="field-label">{t("profileEditor.env.label")}</span>
             <textarea
               className="field-input field-textarea"
               value={envText}
@@ -392,7 +391,7 @@ const ProfileEditor = ({
               rows={3}
               placeholder="PATH=/usr/local/bin"
             />
-            <span className="field-help">格式：KEY=VALUE，每行一个。</span>
+            <span className="field-help">{t("profileEditor.env.help")}</span>
           </label>
         ) : null}
       </form>
