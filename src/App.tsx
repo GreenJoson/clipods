@@ -1,5 +1,5 @@
 /**
- * @input  依赖：React, Tauri API, 配置服务, Codex 配置生成, 登录状态检测, 终端安装检测, 更新检测, 平台检测, 帮助说明弹窗, UI 组件, 文件系统工具, 启动命令, 登录流程, 目录预创建与 auth.json 写入, 终端配置引导
+ * @input  依赖：React, Tauri API, 配置服务, Codex 配置生成, 登录状态检测, 终端安装检测, 更新检测, 平台检测, 帮助说明/删除确认弹窗, UI 组件, 文件系统工具, 启动命令, 登录流程, 目录预创建与 auth.json 写入, 终端配置引导
  * @output 导出：App 组件
  * @pos    启动器 UI 主入口与状态协调
  *
@@ -46,6 +46,11 @@ const App = () => {
   const [appVersion, setAppVersion] = useState<string>("");
   const [showFirstRunNotice, setShowFirstRunNotice] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [pendingProfileDelete, setPendingProfileDelete] = useState<{
+    kind: ProfileKind;
+    id: string;
+    name: string;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<SessionConfig | null>(
@@ -477,18 +482,10 @@ const App = () => {
     }
   };
 
-  const handleDeleteProfile = async (
+  const performDeleteProfile = async (
     kind: ProfileKind,
     profileId: string
   ) => {
-    const warning =
-      kind === "terminal"
-        ? "确定删除终端配置？关联会话将清除终端设置。"
-        : "确定删除 IDE 配置？关联会话将清除 IDE 设置。";
-    const confirmed = window.confirm(warning);
-    if (!confirmed) {
-      return;
-    }
     const isTerminal = kind === "terminal";
     const nextTerminalProfiles = isTerminal
       ? config.terminalProfiles.filter((profile) => profile.id !== profileId)
@@ -525,6 +522,35 @@ const App = () => {
     } catch (error) {
       setStatus("配置删除失败");
     }
+  };
+
+  const requestDeleteProfile = (
+    kind: ProfileKind,
+    profile: TerminalProfile | IdeProfile
+  ) => {
+    setPendingProfileDelete({ kind, id: profile.id, name: profile.name });
+  };
+
+  const handleDeleteProfile = (kind: ProfileKind, profileId: string) => {
+    const list = kind === "terminal" ? config.terminalProfiles : config.ideProfiles;
+    const found = list.find((profile) => profile.id === profileId);
+    if (found) {
+      requestDeleteProfile(kind, found);
+      return;
+    }
+    performDeleteProfile(kind, profileId).catch(() => undefined);
+  };
+
+  const cancelDeleteProfile = () => {
+    setPendingProfileDelete(null);
+  };
+
+  const confirmDeleteProfile = async () => {
+    if (!pendingProfileDelete) {
+      return;
+    }
+    await performDeleteProfile(pendingProfileDelete.kind, pendingProfileDelete.id);
+    setPendingProfileDelete(null);
   };
 
   const handleLaunchTerminal = async (
@@ -884,7 +910,7 @@ const App = () => {
                   kindLabel="终端"
                   delayMs={index * 70}
                   onEdit={() => handleEditProfile("terminal", profile)}
-                  onDelete={() => handleDeleteProfile("terminal", profile.id)}
+                  onDelete={() => requestDeleteProfile("terminal", profile)}
                 />
               ))}
             </div>
@@ -908,7 +934,7 @@ const App = () => {
                   kindLabel="IDE"
                   delayMs={index * 70}
                   onEdit={() => handleEditProfile("ide", profile)}
-                  onDelete={() => handleDeleteProfile("ide", profile.id)}
+                  onDelete={() => requestDeleteProfile("ide", profile)}
                 />
               ))}
             </div>
@@ -959,6 +985,37 @@ const App = () => {
           onDelete={(profileId) => handleDeleteProfile(profileKind, profileId)}
         />
       ) : null}
+      <Modal
+        open={Boolean(pendingProfileDelete)}
+        title={
+          pendingProfileDelete?.kind === "terminal"
+            ? "删除终端配置"
+            : "删除 IDE 配置"
+        }
+        description={
+          pendingProfileDelete?.kind === "terminal"
+            ? "关联会话将清除终端设置。"
+            : "关联会话将清除 IDE 设置。"
+        }
+        onClose={cancelDeleteProfile}
+        footer={
+          <div className="modal-footer-actions">
+            <button type="button" className="btn btn-ghost" onClick={cancelDeleteProfile}>
+              取消
+            </button>
+            <button type="button" className="btn btn-primary" onClick={confirmDeleteProfile}>
+              确认删除
+            </button>
+          </div>
+        }
+      >
+        <div className="help-notice">
+          <section>
+            <h4>即将删除</h4>
+            <p>{pendingProfileDelete?.name ?? "-"}</p>
+          </section>
+        </div>
+      </Modal>
     </div>
   );
 };
