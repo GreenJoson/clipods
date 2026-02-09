@@ -11,6 +11,7 @@ clipods: a multi-session launcher for Codex CLI (Tauri + React). Default UI lang
 - Import/Export: TOML config import/export for backup and sync.
 - One-click launch: open terminal/IDE and jump to the session directory.
 - Theme/Language: dark mode toggle and ZH/EN switch.
+- Codex.app: supports multi-instance and per-session isolation (separate userDataDir).
 
 ## How to use
 
@@ -20,7 +21,8 @@ clipods: a multi-session launcher for Codex CLI (Tauri + React). Default UI lang
 4. Bind profiles: pick terminal/IDE for the session, then save.
 5. Import/Export: use the toolbar to import/export TOML.
 6. Session launch command: set `codex ...` command to run automatically on terminal launch.
-7. Help: the top-right “Help” shows first-run and update notes.
+7. Codex.app: optionally enable multi-instance and session isolation for parallel logins.
+8. Help: the top-right “Help” shows first-run and update notes.
 
 ## Command & arguments
 
