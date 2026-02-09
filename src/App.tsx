@@ -1,5 +1,5 @@
 /**
- * @input  依赖：React, Tauri API, 配置服务, Codex 配置生成, 登录状态检测, 终端安装检测, UI 组件, 文件系统工具, 启动命令, 登录流程, 目录预创建与 auth.json 写入
+ * @input  依赖：React, Tauri API, 配置服务, Codex 配置生成, 登录状态检测, 终端安装检测, 更新检测, UI 组件, 文件系统工具, 启动命令, 登录流程, 目录预创建与 auth.json 写入
  * @output 导出：App 组件
  * @pos    启动器 UI 主入口与状态协调
  *
@@ -7,9 +7,11 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import { appConfigDir } from "@tauri-apps/api/path";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { mkdir, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
+import { check as checkForUpdates } from "@tauri-apps/plugin-updater";
 import "./App.css";
 import SegmentTabs from "./components/SegmentTabs";
 import Toolbar from "./components/Toolbar";
@@ -40,6 +42,7 @@ const App = () => {
   const [activeTab, setActiveTab] = useState("sessions");
   const [searchValue, setSearchValue] = useState("");
   const [status, setStatus] = useState<string | null>(null);
+  const [appVersion, setAppVersion] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingSession, setEditingSession] = useState<SessionConfig | null>(
@@ -126,6 +129,24 @@ const App = () => {
       mounted = false;
     };
   }, [configService]);
+
+  useEffect(() => {
+    let active = true;
+    getVersion()
+      .then((version) => {
+        if (active) {
+          setAppVersion(version);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setAppVersion("");
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -627,7 +648,7 @@ const App = () => {
   const handleExport = async () => {
     try {
       const target = await save({
-        defaultPath: "codex-launcher.toml",
+        defaultPath: "clipods.toml",
         filters: [{ name: "TOML", extensions: ["toml"] }],
       });
       if (!target) {
@@ -640,14 +661,35 @@ const App = () => {
     }
   };
 
+  const handleCheckUpdates = async () => {
+    try {
+      setStatus("正在检查更新…");
+      const update = await checkForUpdates();
+      if (!update) {
+        setStatus("当前已是最新版本");
+        return;
+      }
+      setStatus(`发现更新 v${update.version}，正在下载…`);
+      await update.downloadAndInstall();
+      setStatus("更新已下载，重启应用完成安装");
+    } catch (error) {
+      setStatus("更新检查失败");
+    }
+  };
+
   return (
     <div className="app-shell">
       <header className="topbar surface motion-rise-in">
         <div className="brand">
           <div className="brand-badge">C</div>
           <div className="brand-copy">
-            <span className="brand-title">Codex Switch</span>
-            <span className="brand-subtitle">多会话启动器</span>
+            <span className="brand-title">clipods</span>
+            <span className="brand-subtitle">
+              多会话启动器
+              <span className="brand-version">
+                {appVersion ? `v${appVersion}` : "v--"}
+              </span>
+            </span>
           </div>
         </div>
         <SegmentTabs items={tabs} activeId={activeTab} onChange={setActiveTab} />
@@ -659,6 +701,9 @@ const App = () => {
               {status}
             </span>
           ) : null}
+          <button type="button" className="btn btn-ghost" onClick={handleCheckUpdates}>
+            检查更新
+          </button>
           <button type="button" className="btn btn-ghost" onClick={handleRevealConfig}>
             配置目录
           </button>

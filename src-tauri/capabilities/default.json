@@ -12,6 +12,7 @@
     "fs:allow-appconfig-write",
     "fs:allow-appconfig-write-recursive",
     "fs:allow-appconfig-meta",
-    "dialog:default"
+    "dialog:default",
+    "updater:default"
   ]
 }

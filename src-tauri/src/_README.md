@@ -5,5 +5,5 @@
 | 文件名 | 地位 | 功能 |
 |-------|------|------|
 | _README.md | 文档 | 本目录说明 |
-| lib.rs | 核心 | 命令与启动逻辑（launcher、Wave、CODEX_HOME 归一化、配置/auth/状态写入与终端检测） |
+| lib.rs | 核心 | 命令与启动逻辑（launcher、Wave、CODEX_HOME 归一化、配置/auth/状态写入、终端检测与更新插件） |
 | main.rs | 核心 | Tauri 进程入口 |

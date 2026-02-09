@@ -1,5 +1,5 @@
 /*
- * @input  依赖：tauri, tauri_plugin_opener, tauri_plugin_shell, tauri_plugin_fs, tauri_plugin_dialog, open 启动参数, Wave wsh
+ * @input  依赖：tauri, tauri_plugin_opener, tauri_plugin_shell, tauri_plugin_fs, tauri_plugin_dialog, tauri_plugin_updater, open 启动参数, Wave wsh
  * @output 导出：greet/launch_terminal/launch_ide/ensure_codex_home/write_codex_config/write_codex_auth/check_codex_auth/check_app_installed/reveal_path 命令, run 启动函数（含 Wave 支持与 CODEX_HOME 归一化）
  * @pos    Tauri 后端命令与启动入口
  *
@@ -415,6 +415,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             greet,
             launch_terminal,

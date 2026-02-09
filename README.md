@@ -1,6 +1,6 @@
-# codex-launcher
+# clipods
 
-Codex CLI 多会话启动器（Tauri + React）。
+clipods：Codex CLI 多会话启动器（Tauri + React）。
 
 ## 核心能力
 
@@ -56,6 +56,12 @@ npm run tauri dev
 - 保存会话/打开终端时，会在该会话的 `CODEX_HOME/config.toml` 写入 Codex CLI 配置，用于固定登录方式与模型相关设置，避免再次弹窗询问。
 - 会话支持填写 `OPENAI_ORGANIZATION` / `OPENAI_PROJECT`，并可追加“高级自定义 TOML”（追加到会话配置末尾）。
 - API 登录会话会写入 `CODEX_HOME/auth.json`（仅包含 `OPENAI_API_KEY`），以匹配中转/自定义 provider 的用法。
+
+## 更新配置（GitHub Releases）
+
+1. 生成更新签名并替换 `src-tauri/tauri.conf.json` 的 `plugins.updater.pubkey`。
+2. 按 Tauri Updater 规范生成 `latest.json` 并上传到 GitHub Release。
+3. 应用内点击“检查更新”即可从 GitHub 获取更新。
 
 ## Documentation Rules
 

@@ -75,6 +75,13 @@
   color: var(--color-text-muted);
 }
 
+.brand-version {
+  margin-left: var(--space-xs);
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  opacity: 0.8;
+}
+
 .top-actions {
   display: flex;
   align-items: center;
