@@ -3,6 +3,7 @@
 clipods: a multi-session launcher for Codex CLI (Tauri + React). Default UI language is Chinese; use the ZH/EN toggle near the logo to switch.
 
 [中文](README.md)
+[Changelog](CHANGELOG.md)
 
 ## Core features
 
@@ -12,6 +13,34 @@ clipods: a multi-session launcher for Codex CLI (Tauri + React). Default UI lang
 - One-click launch: open terminal/IDE and jump to the session directory.
 - Theme/Language: dark mode toggle and ZH/EN switch.
 - Codex.app: supports multi-instance and per-session isolation (separate userDataDir).
+- Runtime self-heal: before launch, missing `AGENTS.md` and `.codex-global-state.json` are created in session homes.
+
+## 0.2.2 highlights
+
+- Added runtime defaults self-heal for `AGENTS.md` and `.codex-global-state.json`.
+- Strengthened Codex.app multi-instance isolation path (`CODEX_HOME` + `userDataDir`).
+- Unified version to `0.2.2` across `package.json`, `Cargo.toml`, and `tauri.conf.json`.
+
+## Codex.app multi-instance troubleshooting
+
+If one instance shows realtime progress details and another does not:
+
+1. Ensure each session uses its own `CODEX_HOME` (avoid reusing polluted legacy dirs).
+2. Use a dedicated `userDataDir` per Codex.app instance.
+3. Verify required files under each session home:
+   - `AGENTS.md`
+   - `.codex-global-state.json`
+   - `config.toml`
+   - `auth.json` for API-login sessions
+4. Confirm launch arguments include `--user-data-dir <path>`.
+5. If only legacy instances fail, bind the session to a clean `CODEX_HOME` and retry.
+
+Quick checks:
+
+```bash
+ls -la <CODEX_HOME>
+cat <CODEX_HOME>/.codex-global-state.json
+```
 
 ## How to use
 
@@ -64,6 +93,12 @@ npm run tauri dev
 - Saving a session or opening terminal writes Codex config to `CODEX_HOME/config.toml`.
 - API sessions write `CODEX_HOME/auth.json` with `OPENAI_API_KEY`.
 
+## Security notes (API key)
+
+- `auth.json` is local session runtime data and must not be committed or shared.
+- Restrict session directory permissions to the current user on shared machines.
+- Rotate `OPENAI_API_KEY` immediately if leakage is suspected.
+
 ## Local build & install (macOS)
 
 ```bash
@@ -72,9 +107,22 @@ npm run install:macos
 
 If you see permission errors, run with `sudo`.
 
+## Release signing and updater
+
+- `npm run install:macos` is an unsigned local install flow for local validation.
+- GitHub Release builds are signed via workflow secrets:
+  - `TAURI_SIGNING_PRIVATE_KEY`
+  - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+- Auto-updates require matching `latest.json`, `updater.endpoints`, and `updater.pubkey`.
+
 ## Screenshots
 
 ![clipods](public/screenshot/screenshot_cn_1.jpg)
 ![clipods](public/screenshot/Jietu20260209-165010@2x.jpg)
 ![clipods](public/screenshot/Jietu20260209-165018@2x.jpg)
 ![clipods](public/screenshot/screenshot_en_1.jpg)
+
+## Documentation Rules
+
+- Any structural change (new/removed/moved files or folders) must update the relevant `_README.md` in each affected directory.
+- Any change to functionality, architecture, or coding conventions must update the related sub-docs in the same change set.

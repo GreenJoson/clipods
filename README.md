@@ -3,6 +3,7 @@
 clipods：Codex CLI 多会话启动器（Tauri + React）。
 
 [English](README.en.md)
+[更新日志](CHANGELOG.md)
 
 ## 核心能力
 
@@ -11,6 +12,34 @@ clipods：Codex CLI 多会话启动器（Tauri + React）。
 - 导入/导出：支持配置文件 TOML 导入导出。
 - 一键启动：直接打开终端/IDE，并定位到会话目录。
 - Codex.app：支持多开与多会话隔离（独立 userDataDir），便于并行登录/切换。
+- 运行时自愈：启动前自动补齐会话目录中的 `AGENTS.md` 与 `.codex-global-state.json`（避免部分实例缺少实时过程提示）。
+
+## 0.2.2 更新重点
+
+- 新增会话运行时默认文件自愈：`AGENTS.md`、`.codex-global-state.json`。
+- 保持 `Codex.app` 多开隔离链路完整：`CODEX_HOME` + `userDataDir` 组合启动。
+- 同步版本到 `package.json` / `Cargo.toml` / `tauri.conf.json`（统一 `0.2.2`）。
+
+## 多开/隔离排障（Codex.app）
+
+当你发现“一个实例有实时过程，另一个实例没有”时，按下面顺序检查：
+
+1. 每个会话必须有独立 `CODEX_HOME`，且不要复用历史污染目录。
+2. `Codex.app` 多开时建议显式配置独立 `userDataDir`。
+3. 检查会话目录是否存在这些文件：
+   - `AGENTS.md`
+   - `.codex-global-state.json`
+   - `config.toml`
+   - API 登录场景下还应有 `auth.json`
+4. 在会话卡片确认启动参数包含 `--user-data-dir <路径>`。
+5. 若仅老实例异常：新建干净 `CODEX_HOME` 绑定到该会话，再次启动验证。
+
+常用自检命令（示例）：
+
+```bash
+ls -la <CODEX_HOME>
+cat <CODEX_HOME>/.codex-global-state.json
+```
 
 ## 使用指南
 
@@ -67,6 +96,12 @@ npm run tauri dev
 - 会话支持填写 `OPENAI_ORGANIZATION` / `OPENAI_PROJECT`，并可追加“高级自定义 TOML”（追加到会话配置末尾）。
 - API 登录会话会写入 `CODEX_HOME/auth.json`（仅包含 `OPENAI_API_KEY`），以匹配中转/自定义 provider 的用法。
 
+## 安全说明（API Key）
+
+- `auth.json` 仅用于本地会话登录，不应提交到 Git 仓库或共享目录。
+- 建议将会话目录权限设为当前用户可读写（避免多人机器泄漏）。
+- 若怀疑泄漏，请立即轮换 `OPENAI_API_KEY` 并更新会话配置。
+
 ## 本地打包与安装（macOS）
 
 ```bash
@@ -74,6 +109,12 @@ npm run install:macos
 ```
 
 如提示权限不足，请使用 `sudo`。
+
+## Release 签名与更新
+
+- `npm run install:macos` 是本地未签名安装路径，适合本机验证。
+- GitHub Release 构建使用工作流签名（需配置 `TAURI_SIGNING_PRIVATE_KEY` 与 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`）。
+- 自动更新依赖 `latest.json` 与 `tauri.conf.json` 中的 `updater.endpoints`、`updater.pubkey` 一致。
 
 ## 截图
 

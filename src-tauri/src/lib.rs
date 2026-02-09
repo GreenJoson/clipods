@@ -1,7 +1,7 @@
 /*
- * @input  依赖：tauri, tauri_plugin_opener, tauri_plugin_shell, tauri_plugin_fs, tauri_plugin_dialog, tauri_plugin_updater, open 启动参数, Wave wsh
- * @output 导出：greet/launch_terminal/launch_ide/launch_codex_app/ensure_codex_home/write_codex_config/write_codex_auth/check_codex_auth/check_app_installed/reveal_path 命令, run 启动函数（含 Wave 支持与 CODEX_HOME 归一化）
- * @pos    Tauri 后端命令与启动入口
+ * @input  依赖：tauri, tauri_plugin_opener, tauri_plugin_shell, tauri_plugin_fs, tauri_plugin_dialog, tauri_plugin_updater, serde_json, open 启动参数, Wave wsh
+ * @output 导出：greet/launch_terminal/launch_ide/launch_codex_app/ensure_codex_home/ensure_codex_agents/ensure_codex_global_state/write_codex_config/write_codex_auth/check_codex_auth/check_app_installed/reveal_path 命令, run 启动函数（含 Wave 支持与 CODEX_HOME 归一化）
+ * @pos    Tauri 后端命令与启动入口（含会话运行时默认自愈）
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
@@ -13,6 +13,21 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
 };
+use serde_json::{Map, Value};
+
+const DEFAULT_AGENTS_MD: &str = r#"---
+name: execution-first
+description: Keep execution visible and verifiable for coding tasks.
+---
+
+# Execution Rules
+
+1. Execute implementation tasks directly unless the user explicitly asks for planning.
+2. Provide short progress updates while working.
+3. If the user asks to run a command, run it first and then answer with real output.
+4. Never claim completion without verifiable evidence (changed files, command output, or test output).
+5. If blocked, state the blocker and next step clearly.
+"#;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -163,6 +178,80 @@ fn ensure_codex_home(path: Option<String>) -> Result<String, String> {
     let resolved = normalize_path(&selected)?;
     fs::create_dir_all(&resolved).map_err(|err| err.to_string())?;
     path_to_string(&resolved)
+}
+
+#[tauri::command]
+fn ensure_codex_agents(path: Option<String>) -> Result<String, String> {
+    let fallback = "~/.codex".to_string();
+    let selected = path
+        .or_else(|| env::var("CODEX_HOME").ok())
+        .unwrap_or(fallback);
+    let resolved = normalize_path(&selected)?;
+    fs::create_dir_all(&resolved).map_err(|err| err.to_string())?;
+    let target = resolved.join("AGENTS.md");
+    let should_write = match fs::metadata(&target) {
+        Ok(meta) => meta.len() == 0,
+        Err(err) => {
+            if err.kind() == std::io::ErrorKind::NotFound {
+                true
+            } else {
+                return Err(err.to_string());
+            }
+        }
+    };
+    if should_write {
+        fs::write(&target, DEFAULT_AGENTS_MD).map_err(|err| err.to_string())?;
+    }
+    path_to_string(&target)
+}
+
+#[tauri::command]
+fn ensure_codex_global_state(path: Option<String>) -> Result<String, String> {
+    let fallback = "~/.codex".to_string();
+    let selected = path
+        .or_else(|| env::var("CODEX_HOME").ok())
+        .unwrap_or(fallback);
+    let resolved = normalize_path(&selected)?;
+    fs::create_dir_all(&resolved).map_err(|err| err.to_string())?;
+    let target = resolved.join(".codex-global-state.json");
+    let existing = match fs::read_to_string(&target) {
+        Ok(value) => value,
+        Err(err) => {
+            if err.kind() == std::io::ErrorKind::NotFound {
+                "{}".to_string()
+            } else {
+                return Err(err.to_string());
+            }
+        }
+    };
+    let mut root: Map<String, Value> = match serde_json::from_str::<Value>(&existing) {
+        Ok(Value::Object(object)) => object,
+        _ => Map::new(),
+    };
+    if !root.contains_key("preventSleepWhileRunning") {
+        root.insert("preventSleepWhileRunning".to_string(), Value::Bool(true));
+    }
+    if !root.contains_key("followUpQueueMode") {
+        root.insert("followUpQueueMode".to_string(), Value::String("queue".to_string()));
+    }
+    if !root.contains_key("notifications-turn-mode") {
+        root.insert(
+            "notifications-turn-mode".to_string(),
+            Value::String("always".to_string()),
+        );
+    }
+    if !root.contains_key("thread-titles") {
+        let mut titles = Map::new();
+        titles.insert("titles".to_string(), Value::Object(Map::new()));
+        titles.insert("order".to_string(), Value::Array(Vec::new()));
+        root.insert("thread-titles".to_string(), Value::Object(titles));
+    }
+    if !root.contains_key("queued-follow-ups") {
+        root.insert("queued-follow-ups".to_string(), Value::Object(Map::new()));
+    }
+    let serialized = serde_json::to_string(&Value::Object(root)).map_err(|err| err.to_string())?;
+    fs::write(&target, serialized).map_err(|err| err.to_string())?;
+    path_to_string(&target)
 }
 
 #[tauri::command]
@@ -520,6 +609,8 @@ pub fn run() {
             launch_ide,
             launch_codex_app,
             ensure_codex_home,
+            ensure_codex_agents,
+            ensure_codex_global_state,
             write_codex_config,
             write_codex_auth,
             check_codex_auth,
