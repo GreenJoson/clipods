@@ -13,7 +13,7 @@
 | vite-env.d.ts | 支撑 | Vite 类型声明 |
 | assets | 资源 | 前端静态资源 |
 | blocks | 结构 | 页面块级模块 |
-| components | 组件 | 可复用 UI 组件（含会话高级 TOML 编辑） |
+| components | 组件 | 可复用 UI 组件（含会话高级 TOML 编辑与终端模板） |
 | hooks | 逻辑 | React Hooks |
 | models | 模型 | 数据模型 |
 | services | 服务 | 业务服务层 |

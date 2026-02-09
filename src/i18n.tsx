@@ -1,7 +1,7 @@
 /**
- * @input  依赖：React, localStorage, navigator
+ * @input  依赖：React, localStorage, navigator, 中英文文案映射（含终端模板）
  * @output 导出：LocaleProvider/useI18n/Locale 类型与翻译函数
- * @pos    简易 i18n 入口与语言状态管理
+ * @pos    简易 i18n 入口与语言状态管理（含终端模板文案）
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
@@ -38,6 +38,7 @@ const zh = {
   "profileToolbar.search.aria": "搜索配置",
   "profileToolbar.total": "总数 {count}",
   "profileToolbar.show": "显示 {count}",
+  "profileEditor.template.ghostty": "Ghostty",
   "empty.sessions.title": "先建一个会话",
   "empty.sessions.desc": "创建会话后，你可以为每个账号配置独立的 CODEX_HOME 与启动方式。",
   "empty.sessions.action": "创建会话",
@@ -287,6 +288,7 @@ const en: Record<TranslationKey, string> = {
   "profileToolbar.search.aria": "Search profiles",
   "profileToolbar.total": "Total {count}",
   "profileToolbar.show": "Showing {count}",
+  "profileEditor.template.ghostty": "Ghostty",
   "empty.sessions.title": "Create your first session",
   "empty.sessions.desc": "Each session can use an isolated CODEX_HOME and launch setup.",
   "empty.sessions.action": "Create session",
