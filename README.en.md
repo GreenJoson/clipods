@@ -10,10 +10,25 @@ clipods: a multi-session launcher for Codex CLI (Tauri + React). Default UI lang
 - Multi-account sessions: each session has its own `CODEX_HOME` and login type (Official/API).
 - Terminal & IDE profiles: define launch command and arguments per tool.
 - Import/Export: TOML config import/export for backup and sync.
-- One-click launch: open terminal/IDE and jump to the session directory.
+- One-click launch: open terminal/IDE and jump to the session directory (IDE launch prefers project path from `launchCommand --cd`, and injects session `CODEX_HOME` and env).
 - Theme/Language: dark mode toggle and ZH/EN switch.
 - Codex.app: supports multi-instance and per-session isolation (separate userDataDir).
+- In-session switch: change terminal/IDE profile directly on a session card and persist it as the session default.
 - Runtime self-heal: before launch, missing `AGENTS.md` and `.codex-global-state.json` are created in session homes.
+
+## 0.2.5 highlights
+
+- API sessions now auto-inject collaboration feature defaults (`features.collab/unified_exec/...`) to reduce non-realtime behavior.
+- If advanced TOML already defines `[features]`, default injection is skipped to avoid conflicts.
+- "Open IDE" now prefers the project path parsed from `launchCommand --cd` instead of opening `CODEX_HOME`.
+- Unified version to `0.2.5` across `package.json`, `Cargo.toml`, and `tauri.conf.json`.
+
+## 0.2.4 highlights
+
+- Session card now supports quick IDE profile switching with persistence.
+- In-session quick switch now covers both terminal and IDE profiles.
+- IDE launch injects session `CODEX_HOME` and environment variables for stronger isolation.
+- Unified version to `0.2.4` across `package.json`, `Cargo.toml`, and `tauri.conf.json`.
 
 ## 0.2.3 highlights
 

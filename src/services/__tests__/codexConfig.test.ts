@@ -47,6 +47,12 @@ describe("buildCodexConfig", () => {
     expect(output).toContain('wire_api = "responses"');
     expect(output).toContain("requires_openai_auth = false");
     expect(output).toContain('base_url = "https://api.openai.com/v1"');
+    expect(output).toContain("[features]");
+    expect(output).toContain("collab = true");
+    expect(output).toContain("collaboration_modes = true");
+    expect(output).toContain("unified_exec = true");
+    expect(output).toContain("shell_snapshot = true");
+    expect(output).toContain("steer = true");
     expect(output).not.toContain("env_key");
   });
 
@@ -63,6 +69,24 @@ describe("buildCodexConfig", () => {
     expect(output).toContain('name = "openai"');
     expect(output).toContain('env_key = "OPENAI_API_KEY"');
     expect(output).not.toContain("base_url =");
+    expect(output).toContain("[features]");
+    expect(output).toContain("collab = true");
+  });
+
+  it("does not inject default features when extra config already defines features", () => {
+    const output = buildCodexConfig({
+      ...baseSession,
+      loginType: "api",
+      env: {
+        OPENAI_API_KEY: "sk-test",
+      },
+      extraConfigToml: "[features]\ncollab = false\nshell_snapshot = false",
+    });
+
+    const featureHeaderCount = (output.match(/\[features\]/gu) ?? []).length;
+    expect(featureHeaderCount).toBe(1);
+    expect(output).toContain("collab = false");
+    expect(output).toContain("shell_snapshot = false");
   });
 
   it("appends extra config toml at the end", () => {

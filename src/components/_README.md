@@ -11,6 +11,6 @@
 | ProfileEditor.tsx | 核心 | 终端与 IDE 配置编辑弹窗（支持 .app 拖拽、Ghostty/Wave/iTerm/Terminal 模板、Ghostty 复合命令 zsh -lc 兼容与应用安装检测） |
 | ProfileToolbar.tsx | 核心 | 终端与 IDE 配置工具栏（含多语言搜索提示） |
 | SegmentTabs.tsx | 基础 | 顶部分段导航组件 |
-| SessionCard.tsx | 核心 | 会话卡片展示与操作（含官方登录入口、Codex.app 启动与参数展示、登录状态与项目路径） |
+| SessionCard.tsx | 核心 | 会话卡片展示与操作（含官方登录入口、会话内终端/IDE 快速切换记忆、Codex.app 启动与参数展示、登录状态与项目路径） |
 | SessionEditor.tsx | 核心 | 会话创建与编辑弹窗（含命令构建器、Codex.app 设置、环境变量快捷填充/恢复、高级 TOML 与终端配置提示） |
 | Toolbar.tsx | 核心 | 搜索与快捷操作栏（含多语言文案） |

@@ -1,7 +1,7 @@
 /*
- * @input  依赖：tauri, tauri_plugin_opener, tauri_plugin_shell, tauri_plugin_fs, tauri_plugin_dialog, tauri_plugin_updater, serde_json, open 启动参数, Wave wsh, Ghostty 参数兼容转换
- * @output 导出：greet/launch_terminal/launch_ide/launch_codex_app/ensure_codex_home/ensure_codex_agents/ensure_codex_global_state/write_codex_config/write_codex_auth/check_codex_auth/check_app_installed/reveal_path 命令, run 启动函数（含 Wave 支持、Ghostty 兼容与 CODEX_HOME 归一化）
- * @pos    Tauri 后端命令与启动入口（含会话运行时默认自愈与终端参数兼容）
+ * @input  依赖：tauri, tauri_plugin_opener, tauri_plugin_shell, tauri_plugin_fs, tauri_plugin_dialog, tauri_plugin_updater, serde_json, open 启动参数, Wave wsh, Ghostty 参数兼容转换, IDE 启动环境注入
+ * @output 导出：greet/launch_terminal/launch_ide/launch_codex_app/ensure_codex_home/ensure_codex_agents/ensure_codex_global_state/write_codex_config/write_codex_auth/check_codex_auth/check_app_installed/reveal_path 命令, run 启动函数（含 Wave 支持、Ghostty 兼容、IDE 环境注入与 CODEX_HOME 归一化）
+ * @pos    Tauri 后端命令与启动入口（含会话运行时默认自愈、终端参数兼容与 IDE 隔离注入）
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
@@ -89,6 +89,7 @@ fn launch_ide(
     app: Option<String>,
     args: Option<Vec<String>>,
     target_path: Option<String>,
+    env: Option<HashMap<String, String>>,
 ) -> Result<(), String> {
     let mut open_args: Vec<String> = Vec::new();
     if let Some(app_name) = app {
@@ -116,7 +117,8 @@ fn launch_ide(
     if open_args.is_empty() {
         return Err("launch_ide requires an app name or target path".to_string());
     }
-    run_open(&open_args)
+    let env_map = env.unwrap_or_default();
+    run_open_with_env(&open_args, &env_map)
 }
 
 #[tauri::command]

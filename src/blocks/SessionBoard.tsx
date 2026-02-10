@@ -1,7 +1,7 @@
 /**
- * @input  依赖：SessionCard, EmptyState, 配置类型, 启动配置, 登录入口, 登录状态, Codex.app 启动, i18n
+ * @input  依赖：SessionCard, EmptyState, 配置类型, 启动配置, 登录入口, 登录状态, Codex.app 启动, 会话终端/IDE 快速切换, i18n
  * @output 导出：SessionBoard 区块
- * @pos    会话列表布局与空态控制
+ * @pos    会话列表布局与空态控制（含终端/IDE 偏好透传）
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
@@ -23,6 +23,11 @@ interface SessionBoardProps {
   onLogin: (session: SessionConfig, profile?: TerminalProfile) => void;
   onRevealHome: (session: SessionConfig) => void;
   onEditSession: (session: SessionConfig) => void;
+  onSwitchTerminalProfile: (
+    session: SessionConfig,
+    terminalProfileId?: string
+  ) => void;
+  onSwitchIdeProfile: (session: SessionConfig, ideProfileId?: string) => void;
 }
 
 const SessionBoard = ({
@@ -38,6 +43,8 @@ const SessionBoard = ({
   onLogin,
   onRevealHome,
   onEditSession,
+  onSwitchTerminalProfile,
+  onSwitchIdeProfile,
 }: SessionBoardProps) => {
   const { t } = useI18n();
   if (sessions.length === 0) {
@@ -68,9 +75,11 @@ const SessionBoard = ({
               ? terminalMap.get(session.terminalProfileId)
               : undefined
           }
+          terminalProfiles={terminalProfiles}
           ideProfile={
             session.ideProfileId ? ideMap.get(session.ideProfileId) : undefined
           }
+          ideProfiles={ideProfiles}
           isDefault={session.id === defaultSessionId}
           delayMs={index * 80}
           onLaunchTerminal={onLaunchTerminal}
@@ -79,6 +88,8 @@ const SessionBoard = ({
           onLogin={onLogin}
           onRevealHome={onRevealHome}
           onEdit={onEditSession}
+          onSwitchTerminalProfile={onSwitchTerminalProfile}
+          onSwitchIdeProfile={onSwitchIdeProfile}
         />
       ))}
     </div>

@@ -10,9 +10,24 @@ clipods：Codex CLI 多会话启动器（Tauri + React）。
 - 多账号会话：每个会话绑定独立的 `CODEX_HOME` 与登录方式（官方/API）。
 - 终端与 IDE 配置：为不同工具定义启动命令与参数。
 - 导入/导出：支持配置文件 TOML 导入导出。
-- 一键启动：直接打开终端/IDE，并定位到会话目录。
+- 一键启动：直接打开终端/IDE，并定位到会话目录（IDE 启动优先按 `launchCommand --cd` 打开项目目录，并注入会话级 `CODEX_HOME` 与环境变量）。
 - Codex.app：支持多开与多会话隔离（独立 userDataDir），便于并行登录/切换。
+- 会话内切换：可在会话卡片直接切换终端/IDE 配置，并自动记忆为该会话默认配置。
 - 运行时自愈：启动前自动补齐会话目录中的 `AGENTS.md` 与 `.codex-global-state.json`（避免部分实例缺少实时过程提示）。
+
+## 0.2.5 更新重点
+
+- API 会话自动补齐协作能力配置（`features.collab/unified_exec/...`），减少“只回最终结果、不显示实时过程”的问题。
+- 若会话高级 TOML 已自定义 `[features]`，不再重复注入，避免配置冲突。
+- 点击“打开 IDE”会优先解析 `launchCommand --cd` 并打开该项目目录，不再默认打开 `CODEX_HOME`。
+- 同步版本到 `package.json` / `Cargo.toml` / `tauri.conf.json`（统一 `0.2.5`）。
+
+## 0.2.4 更新重点
+
+- 会话卡片支持 IDE 快速切换并自动记忆。
+- 会话内快速切换能力覆盖终端与 IDE。
+- IDE 启动注入会话级 `CODEX_HOME` 与环境变量，降低跨会话串用风险。
+- 同步版本到 `package.json` / `Cargo.toml` / `tauri.conf.json`（统一 `0.2.4`）。
 
 ## 0.2.3 更新重点
 

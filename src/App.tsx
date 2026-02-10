@@ -1,7 +1,7 @@
 /**
- * @input  依赖：React, Tauri API, 配置服务, Codex 配置生成, 登录状态检测, 终端安装检测, Codex.app 启动（多开隔离）, 更新检测, 平台检测, 帮助说明/删除确认弹窗, i18n, 主题切换, UI 组件, 文件系统工具, 启动命令, 登录流程, 目录预创建与 auth.json/AGENTS/global-state 写入, 终端配置引导与回填
+ * @input  依赖：React, Tauri API, 配置服务, Codex 配置生成, 登录状态检测, 终端安装检测, Codex.app 启动（多开隔离）, 更新检测, 平台检测, 帮助说明/删除确认弹窗, i18n, 主题切换, UI 组件, 文件系统工具, 启动命令, 登录流程, 目录预创建与 auth.json/AGENTS/global-state 写入, 终端配置引导与回填, 会话终端/IDE 快速切换持久化, IDE 启动环境隔离注入与项目路径解析
  * @output 导出：App 组件
- * @pos    启动器 UI 主入口与状态协调（含 Codex.app 多开隔离与运行时默认自愈）
+ * @pos    启动器 UI 主入口与状态协调（含 Codex.app 多开隔离、终端/IDE 偏好记忆、IDE 环境隔离、项目路径定向与运行时默认自愈）
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
@@ -25,6 +25,11 @@ import SessionEditor from "./components/SessionEditor";
 import SessionBoard from "./blocks/SessionBoard";
 import { createConfigService, parseConfig, serializeConfig } from "./services/configService";
 import { buildCodexConfig } from "./services/codexConfig";
+import {
+  parseSessionProjectPath,
+  setSessionIdeProfile,
+  setSessionTerminalProfile,
+} from "./models/session";
 import { useI18n } from "./i18n";
 import type {
   AppConfig,
@@ -485,6 +490,54 @@ const App = () => {
     }
   };
 
+  const handleSwitchTerminalProfile = async (
+    session: SessionConfig,
+    terminalProfileId?: string
+  ) => {
+    const nextSessions = config.sessions.map((entry) =>
+      entry.id === session.id
+        ? setSessionTerminalProfile(entry, terminalProfileId)
+        : entry
+    );
+    const next: AppConfig = {
+      ...config,
+      sessions: nextSessions,
+    };
+    setConfig(next);
+    if (editingSession?.id === session.id) {
+      setEditingSession(setSessionTerminalProfile(editingSession, terminalProfileId));
+    }
+    try {
+      await configService.save(next);
+      setStatus(t("status.sessionTerminalUpdated"));
+    } catch (error) {
+      setStatus(t("status.sessionSaveFailed"));
+    }
+  };
+
+  const handleSwitchIdeProfile = async (
+    session: SessionConfig,
+    ideProfileId?: string
+  ) => {
+    const nextSessions = config.sessions.map((entry) =>
+      entry.id === session.id ? setSessionIdeProfile(entry, ideProfileId) : entry
+    );
+    const next: AppConfig = {
+      ...config,
+      sessions: nextSessions,
+    };
+    setConfig(next);
+    if (editingSession?.id === session.id) {
+      setEditingSession(setSessionIdeProfile(editingSession, ideProfileId));
+    }
+    try {
+      await configService.save(next);
+      setStatus(t("status.sessionIdeUpdated"));
+    } catch (error) {
+      setStatus(t("status.sessionSaveFailed"));
+    }
+  };
+
   const handleCreateProfile = (kind: ProfileKind, sessionId?: string) => {
     const id = `${kind}-${Date.now()}`;
     const profile =
@@ -762,12 +815,31 @@ const App = () => {
 
   const handleLaunchIde = async (session: SessionConfig, profile?: IdeProfile) => {
     try {
+      const resolvedHome = await invoke<string>("ensure_codex_home", {
+        path: session.codexHome,
+      });
+      const targetProjectPath = parseSessionProjectPath(session.launchCommand);
+      const mergedEnv = sanitizeEnvForLoginType(session, {
+        ...(session.env ?? {}),
+      });
+      if (resolvedHome) {
+        mergedEnv.CODEX_HOME = resolvedHome;
+      }
+      await ensureCodexRuntimeDefaults(resolvedHome ?? null);
+      let configFailed = false;
+      try {
+        await writeCodexConfigFile(session, resolvedHome ?? null);
+        await writeCodexAuthFile(session, resolvedHome ?? null);
+      } catch (error) {
+        configFailed = true;
+      }
       await invoke("launch_ide", {
         app: profile?.command ?? "Visual Studio Code",
         args: profile?.args,
-        targetPath: session.codexHome,
+        targetPath: targetProjectPath,
+        env: Object.keys(mergedEnv).length ? mergedEnv : undefined,
       });
-      setStatus(t("status.ideOpened"));
+      setStatus(configFailed ? t("status.ideOpenedConfigFailed") : t("status.ideOpened"));
     } catch (error) {
       setStatus(t("status.ideLaunchFailed"));
     }
@@ -1108,6 +1180,8 @@ const App = () => {
             onLogin={handleLogin}
             onRevealHome={handleRevealHome}
             onEditSession={handleEditSession}
+            onSwitchTerminalProfile={handleSwitchTerminalProfile}
+            onSwitchIdeProfile={handleSwitchIdeProfile}
           />
         ) : null}
 

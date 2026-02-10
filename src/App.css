@@ -485,6 +485,13 @@
   text-overflow: ellipsis;
 }
 
+.session-inline-select {
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+  padding: 4px 8px;
+}
+
 .session-kv-wide {
   grid-column: 1 / -1;
 }

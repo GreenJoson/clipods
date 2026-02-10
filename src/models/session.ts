@@ -1,7 +1,7 @@
 /**
  * @input  依赖：SessionConfig 类型
- * @output 导出：session 规范化与构建工具（含启动命令、Codex.app 与高级 TOML）
- * @pos    Session 配置模型的处理层
+ * @output 导出：session 规范化与构建工具（含启动命令项目路径解析、Codex.app、高级 TOML 与终端/IDE 偏好切换）
+ * @pos    Session 配置模型的处理层（含会话终端/IDE 偏好更新与 --cd 解析）
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
@@ -90,4 +90,39 @@ export const normalizeSession = (value: unknown): SessionConfig | null => {
     codexAppUserDataDir: readStringOptional(value.codexAppUserDataDir),
     codexAppAllowMultiple: readBoolOptional(value.codexAppAllowMultiple),
   });
+};
+
+export const setSessionTerminalProfile = (
+  session: SessionConfig,
+  terminalProfileId?: string
+): SessionConfig => {
+  const trimmed = terminalProfileId?.trim();
+  return {
+    ...session,
+    terminalProfileId: trimmed ? trimmed : undefined,
+  };
+};
+
+export const setSessionIdeProfile = (
+  session: SessionConfig,
+  ideProfileId?: string
+): SessionConfig => {
+  const trimmed = ideProfileId?.trim();
+  return {
+    ...session,
+    ideProfileId: trimmed ? trimmed : undefined,
+  };
+};
+
+export const parseSessionProjectPath = (command?: string): string | undefined => {
+  if (!command) {
+    return undefined;
+  }
+  const match = command.match(/--cd(?:=|\s+)(?:(["'])(.*?)\1|([^\s]+))/u);
+  const value = match?.[2] ?? match?.[3];
+  if (!value) {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
 };

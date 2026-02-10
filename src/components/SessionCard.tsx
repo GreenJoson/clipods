@@ -1,23 +1,13 @@
 /**
- * @input  依赖：React, 配置类型, 启动配置, 登录入口, 登录状态, Codex.app 启动参数展示, 项目路径正则解析, 紧凑布局, i18n
+ * @input  依赖：React, 配置类型, 启动配置, 登录入口, 登录状态, Codex.app 启动参数展示, session 项目路径解析工具, 会话内终端/IDE 快速切换, 紧凑布局, i18n
  * @output 导出：SessionCard 组件
- * @pos    会话卡片展示与操作（含 Codex.app 调试信息）
+ * @pos    会话卡片展示与操作（含 Codex.app 调试信息、项目路径展示与终端/IDE 偏好记忆）
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
 import type { IdeProfile, SessionConfig, TerminalProfile } from "../types/config";
 import { useI18n } from "../i18n";
-
-const parseProjectPath = (command?: string): string | null => {
-  if (!command) {
-    return null;
-  }
-  const match = command.match(/--cd(?:=|\s+)(?:(["'])(.*?)\1|([^\s]+))/u);
-  if (!match) {
-    return null;
-  }
-  return match[2] ?? match[3] ?? null;
-};
+import { parseSessionProjectPath } from "../models/session";
 
 const buildCodexAppUserDataDir = (session: SessionConfig): string | null => {
   if (!session.codexAppEnabled) {
@@ -54,7 +44,9 @@ interface SessionCardProps {
   session: SessionConfig;
   loginStatus?: "missing" | "api" | "chatgpt";
   terminalProfile?: TerminalProfile;
+  terminalProfiles: TerminalProfile[];
   ideProfile?: IdeProfile;
+  ideProfiles: IdeProfile[];
   isDefault?: boolean;
   delayMs?: number;
   onLaunchTerminal: (session: SessionConfig, profile?: TerminalProfile) => void;
@@ -63,13 +55,20 @@ interface SessionCardProps {
   onLogin: (session: SessionConfig, profile?: TerminalProfile) => void;
   onRevealHome: (session: SessionConfig) => void;
   onEdit: (session: SessionConfig) => void;
+  onSwitchTerminalProfile: (
+    session: SessionConfig,
+    terminalProfileId?: string
+  ) => void;
+  onSwitchIdeProfile: (session: SessionConfig, ideProfileId?: string) => void;
 }
 
 const SessionCard = ({
   session,
   loginStatus,
   terminalProfile,
+  terminalProfiles,
   ideProfile,
+  ideProfiles,
   isDefault,
   delayMs,
   onLaunchTerminal,
@@ -78,6 +77,8 @@ const SessionCard = ({
   onLogin,
   onRevealHome,
   onEdit,
+  onSwitchTerminalProfile,
+  onSwitchIdeProfile,
 }: SessionCardProps) => {
   const { t } = useI18n();
   const loginStatusLabel = (() => {
@@ -144,13 +145,41 @@ const SessionCard = ({
         <div className="session-kv-item">
           <span className="session-kv-label">{t("session.label.terminal")}</span>
           <span className="session-kv-value">
-            {terminalProfile?.name ?? t("common.notSet")}
+            <select
+              className="field-input session-inline-select"
+              value={session.terminalProfileId ?? ""}
+              onChange={(event) =>
+                onSwitchTerminalProfile(session, event.target.value || undefined)
+              }
+              aria-label={t("session.action.switchTerminal")}
+            >
+              <option value="">{t("common.notSet")}</option>
+              {terminalProfiles.map((profile) => (
+                <option key={profile.id} value={profile.id}>
+                  {profile.name}
+                </option>
+              ))}
+            </select>
           </span>
         </div>
         <div className="session-kv-item">
           <span className="session-kv-label">{t("session.label.ide")}</span>
           <span className="session-kv-value">
-            {ideProfile?.name ?? t("common.notSet")}
+            <select
+              className="field-input session-inline-select"
+              value={session.ideProfileId ?? ""}
+              onChange={(event) =>
+                onSwitchIdeProfile(session, event.target.value || undefined)
+              }
+              aria-label={t("session.action.switchIde")}
+            >
+              <option value="">{t("common.notSet")}</option>
+              {ideProfiles.map((profile) => (
+                <option key={profile.id} value={profile.id}>
+                  {profile.name}
+                </option>
+              ))}
+            </select>
           </span>
         </div>
         <div className="session-kv-item">
@@ -200,7 +229,7 @@ const SessionCard = ({
         <div className="session-kv-item">
           <span className="session-kv-label">{t("session.label.projectPath")}</span>
           <span className="session-kv-value">
-            {parseProjectPath(session.launchCommand) ??
+            {parseSessionProjectPath(session.launchCommand) ??
               t("session.value.projectPath.default")}
           </span>
         </div>
