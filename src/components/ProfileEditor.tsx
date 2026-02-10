@@ -1,7 +1,7 @@
 /**
- * @input  依赖：React, Modal, 配置类型, 拖拽事件 payload, Tauri 窗口事件, 终端模板（含 Ghostty）, 表单说明文本, 终端应用安装检测, i18n
+ * @input  依赖：React, Modal, 配置类型, 拖拽事件 payload, Tauri 窗口事件, 终端模板（含 Ghostty zsh -lc 包装）, 表单说明文本, 终端应用安装检测, i18n
  * @output 导出：ProfileEditor 组件
- * @pos    终端与 IDE 配置编辑弹窗（含 Ghostty 模板）
+ * @pos    终端与 IDE 配置编辑弹窗（含 Ghostty 复合命令兼容模板）
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
@@ -131,7 +131,7 @@ const ProfileEditor = ({
       label: t("profileEditor.template.ghostty"),
       name: "Ghostty",
       command: "Ghostty",
-      args: ["-e", "{command}"],
+      args: ["-e", "/bin/sh", "-lc", "{command}"],
     },
   ];
 

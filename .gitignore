@@ -33,3 +33,6 @@ codex/
 codex_api/
 config.toml
 auth.json
+
+# Local agent instructions (project-specific, never commit)
+/AGENTS.md

@@ -1,7 +1,7 @@
 /*
- * @input  依赖：tauri, tauri_plugin_opener, tauri_plugin_shell, tauri_plugin_fs, tauri_plugin_dialog, tauri_plugin_updater, serde_json, open 启动参数, Wave wsh
- * @output 导出：greet/launch_terminal/launch_ide/launch_codex_app/ensure_codex_home/ensure_codex_agents/ensure_codex_global_state/write_codex_config/write_codex_auth/check_codex_auth/check_app_installed/reveal_path 命令, run 启动函数（含 Wave 支持与 CODEX_HOME 归一化）
- * @pos    Tauri 后端命令与启动入口（含会话运行时默认自愈）
+ * @input  依赖：tauri, tauri_plugin_opener, tauri_plugin_shell, tauri_plugin_fs, tauri_plugin_dialog, tauri_plugin_updater, serde_json, open 启动参数, Wave wsh, Ghostty 参数兼容转换
+ * @output 导出：greet/launch_terminal/launch_ide/launch_codex_app/ensure_codex_home/ensure_codex_agents/ensure_codex_global_state/write_codex_config/write_codex_auth/check_codex_auth/check_app_installed/reveal_path 命令, run 启动函数（含 Wave 支持、Ghostty 兼容与 CODEX_HOME 归一化）
+ * @pos    Tauri 后端命令与启动入口（含会话运行时默认自愈与终端参数兼容）
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
@@ -57,21 +57,29 @@ fn launch_terminal(
     if matches_wave_app(&app_name) {
         return launch_wave_terminal(&app_name, &command_line, &normalized_dir, args);
     }
+    let is_ghostty = matches_ghostty_app(&app_name);
     let mut open_args = vec!["-a".to_string(), app_name];
     if let Some(dir) = normalized_dir.as_ref() {
-        open_args.push(path_to_string(dir)?);
-    }
-    if let Some(extra_args) = args {
-        let filtered: Vec<String> = extra_args
-            .into_iter()
-            .map(|value| value.trim().to_string())
-            .filter(|value| !value.is_empty())
-            .map(|value| substitute_placeholders(&value, &command_line, &normalized_dir))
-            .collect();
-        if !filtered.is_empty() {
-            open_args.push("--args".to_string());
-            open_args.extend(filtered);
+        if is_ghostty {
+            // Ghostty on macOS does not accept opening a directory path via `open -a`.
+            // Working directory is already handled in the shell command line.
+        } else {
+            open_args.push(path_to_string(dir)?);
         }
+    }
+    let mut filtered: Vec<String> = args
+        .unwrap_or_default()
+        .into_iter()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .map(|value| substitute_placeholders(&value, &command_line, &normalized_dir))
+        .collect();
+    if is_ghostty {
+        filtered = normalize_ghostty_args(filtered, &command_line);
+    }
+    if !filtered.is_empty() {
+        open_args.push("--args".to_string());
+        open_args.extend(filtered);
     }
     run_open(&open_args)
 }
@@ -463,6 +471,85 @@ fn matches_wave_app(app_name: &str) -> bool {
     normalized == "wave" || normalized == "waveterm" || normalized == "wave terminal"
 }
 
+fn matches_ghostty_app(app_name: &str) -> bool {
+    app_name.to_lowercase().contains("ghostty")
+}
+
+fn normalize_ghostty_args(args: Vec<String>, command_line: &Option<String>) -> Vec<String> {
+    let selected_shell = select_available_shell();
+    if args.is_empty() {
+        if let Some(cmd) = command_line.as_ref().map(|value| value.trim()) {
+            if !cmd.is_empty() {
+                return vec![
+                    "-e".to_string(),
+                    selected_shell,
+                    "-lc".to_string(),
+                    cmd.to_string(),
+                ];
+            }
+        }
+        return args;
+    }
+
+    let is_shell_wrapped =
+        args.len() == 4 && args.first().map(|value| value == "-e").unwrap_or(false)
+            && args.get(2).map(|value| value == "-lc").unwrap_or(false);
+    if is_shell_wrapped {
+        let shell_arg = args.get(1).map(|value| value.trim()).unwrap_or_default();
+        if shell_arg.is_empty() || !Path::new(shell_arg).is_file() {
+            return vec![
+                "-e".to_string(),
+                selected_shell,
+                "-lc".to_string(),
+                args.get(3).cloned().unwrap_or_default(),
+            ];
+        }
+        return args;
+    }
+
+    let is_legacy_template =
+        args.len() == 2 && args.first().map(|value| value == "-e").unwrap_or(false);
+    if !is_legacy_template {
+        return args;
+    }
+
+    let fallback = command_line
+        .as_ref()
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .map(|value| value.to_string());
+    let command_value = if args[1].trim().is_empty() {
+        fallback
+    } else {
+        Some(args[1].trim().to_string())
+    };
+
+    match command_value {
+        Some(value) => vec![
+            "-e".to_string(),
+            selected_shell,
+            "-lc".to_string(),
+            value,
+        ],
+        None => Vec::new(),
+    }
+}
+
+fn select_available_shell() -> String {
+    if let Ok(shell) = env::var("SHELL") {
+        let trimmed = shell.trim();
+        if !trimmed.is_empty() && Path::new(trimmed).is_file() {
+            return trimmed.to_string();
+        }
+    }
+    for candidate in ["/bin/zsh", "/bin/bash", "/bin/sh"] {
+        if Path::new(candidate).is_file() {
+            return candidate.to_string();
+        }
+    }
+    "/bin/sh".to_string()
+}
+
 fn launch_terminal_script(app_name: &str, command_line: &Option<String>) -> Result<(), String> {
     let script = if app_name.to_lowercase().contains("iterm") {
         let command = command_line.clone().unwrap_or_else(|| "pwd".to_string());
@@ -619,4 +706,70 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ghostty_empty_args_should_wrap_command_with_shell() {
+        let args: Vec<String> = Vec::new();
+        let command_line = Some(
+            "cd '/tmp/demo'; export CODEX_HOME='/tmp/demo'; codex --cd /tmp/project".to_string(),
+        );
+        let shell = select_available_shell();
+        let normalized = normalize_ghostty_args(args, &command_line);
+        assert_eq!(
+            normalized,
+            vec![
+                "-e".to_string(),
+                shell,
+                "-lc".to_string(),
+                "cd '/tmp/demo'; export CODEX_HOME='/tmp/demo'; codex --cd /tmp/project"
+                    .to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn ghostty_legacy_e_command_args_should_wrap_command_with_shell() {
+        let args = vec![
+            "-e".to_string(),
+            "cd '/tmp/demo'; export A='1'; codex --cd /tmp/project".to_string(),
+        ];
+        let command_line = None;
+        let shell = select_available_shell();
+        let normalized = normalize_ghostty_args(args, &command_line);
+        assert_eq!(
+            normalized,
+            vec![
+                "-e".to_string(),
+                shell,
+                "-lc".to_string(),
+                "cd '/tmp/demo'; export A='1'; codex --cd /tmp/project".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn ghostty_invalid_shell_should_fallback_to_available_shell() {
+        let args = vec![
+            "-e".to_string(),
+            "/not/exist/shell".to_string(),
+            "-lc".to_string(),
+            "echo ok".to_string(),
+        ];
+        let shell = select_available_shell();
+        let normalized = normalize_ghostty_args(args, &None);
+        assert_eq!(
+            normalized,
+            vec![
+                "-e".to_string(),
+                shell,
+                "-lc".to_string(),
+                "echo ok".to_string()
+            ]
+        );
+    }
 }

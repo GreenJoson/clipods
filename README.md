@@ -14,6 +14,12 @@ clipods：Codex CLI 多会话启动器（Tauri + React）。
 - Codex.app：支持多开与多会话隔离（独立 userDataDir），便于并行登录/切换。
 - 运行时自愈：启动前自动补齐会话目录中的 `AGENTS.md` 与 `.codex-global-state.json`（避免部分实例缺少实时过程提示）。
 
+## 0.2.3 更新重点
+
+- 修复 Ghostty 终端对复合命令的执行兼容：统一走 shell 包装执行。
+- 兼容历史 Ghostty 参数（`-e {command}`）并在 shell 不可用时自动回退。
+- 同步版本到 `package.json` / `Cargo.toml` / `tauri.conf.json`（统一 `0.2.3`）。
+
 ## 0.2.2 更新重点
 
 - 新增会话运行时默认文件自愈：`AGENTS.md`、`.codex-global-state.json`。
@@ -60,6 +66,7 @@ cat <CODEX_HOME>/.codex-global-state.json
   - 例：`--reuse-window`
   - 占位符：`{command}` 表示会话启动命令，`{cwd}` 表示会话目录
 - Wave：当终端为 Wave 且未填写启动参数时，会自动通过 `wsh run` 执行会话命令。
+- Ghostty：默认通过 shell 包装执行会话命令，兼容 `cd/export/codex ...` 复合命令。
 - 终端模板：内置 Terminal / iTerm2 / Wave / Ghostty 预设，选择后自动填充名称与启动命令。
 - 环境变量：仅终端配置支持，格式 `KEY=VALUE`，每行一项。
 

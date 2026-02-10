@@ -15,6 +15,12 @@ clipods: a multi-session launcher for Codex CLI (Tauri + React). Default UI lang
 - Codex.app: supports multi-instance and per-session isolation (separate userDataDir).
 - Runtime self-heal: before launch, missing `AGENTS.md` and `.codex-global-state.json` are created in session homes.
 
+## 0.2.3 highlights
+
+- Fixed Ghostty terminal execution for composite commands via shell wrapping.
+- Added compatibility for legacy Ghostty args (`-e {command}`) with shell fallback.
+- Unified version to `0.2.3` across `package.json`, `Cargo.toml`, and `tauri.conf.json`.
+
 ## 0.2.2 highlights
 
 - Added runtime defaults self-heal for `AGENTS.md` and `.codex-global-state.json`.
@@ -61,6 +67,7 @@ cat <CODEX_HOME>/.codex-global-state.json
   - Example: `--reuse-window`
   - Placeholders: `{command}` for session launch command, `{cwd}` for session directory
 - Wave: when selected and no args are set, it runs commands via `wsh run`.
+- Ghostty: session command is shell-wrapped by default for composite command compatibility.
 - Terminal templates: built-in Terminal / iTerm2 / Wave / Ghostty presets.
 - Environment variables: only terminal profiles support env vars, format `KEY=VALUE`.
 
