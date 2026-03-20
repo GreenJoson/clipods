@@ -1,7 +1,7 @@
 /**
- * @input  依赖：React, Tauri API, 配置服务, Codex 配置生成, 登录状态检测, 终端安装检测, Codex.app 启动（多开隔离）, 更新检测, 平台检测, 帮助说明/删除确认弹窗, i18n, 主题切换, UI 组件, 文件系统工具, 启动命令, 登录流程, 目录预创建与 auth.json/AGENTS/global-state 写入, 终端配置引导与回填, 会话终端/IDE 快速切换持久化, IDE 启动环境隔离注入与项目路径解析
- * @output 导出：App 组件
- * @pos    启动器 UI 主入口与状态协调（含 Codex.app 多开隔离、终端/IDE 偏好记忆、IDE 环境隔离、项目路径定向与运行时默认自愈）
+ * @input  依赖：React, Tauri API, 配置服务, 账号绑定解析、Codex/Claude 配置生成, 登录状态检测, 终端安装检测, Codex.app 启动（多开隔离）, 更新检测, 平台检测, 帮助说明/删除确认弹窗, i18n, 主题切换, UI 组件, 文件系统工具, 启动命令, 登录流程（官方登录优先终端触发 OAuth：Codex/Claude；失败兜底浏览器）, 目录预创建与 auth.json/AGENTS/global-state 写入, 终端配置引导与回填, 会话终端/IDE/账号快速切换持久化, IDE 环境隔离注入/新实例控制、Codex/Claude 客户端切换与项目路径解析、Codex/Claude 配置集隔离切换、底部信息栏
+ * @output 导出：App 组件（含会话/账号/终端/IDE 四类配置界面）
+ * @pos    启动器 UI 主入口与状态协调（含可复用账号池、会话绑定账号、Codex ChatGPT/API 与 Claude API 启动投影、Codex.app 多开隔离、会话内终端/IDE/客户端偏好记忆、IDE 环境隔离与新实例控制、Codex/Claude 会话分流、官方登录终端触发与浏览器兜底、配置集隔离、底部信息栏与运行时默认自愈）
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
@@ -11,6 +11,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { appConfigDir } from "@tauri-apps/api/path";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { mkdir, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { check as checkForUpdates } from "@tauri-apps/plugin-updater";
 import "./App.css";
 import logoImg from "./assets/logo.png";
@@ -18,22 +19,38 @@ import SegmentTabs from "./components/SegmentTabs";
 import Toolbar from "./components/Toolbar";
 import ProfileToolbar from "./components/ProfileToolbar";
 import EmptyState from "./components/EmptyState";
+import AccountEditor from "./components/AccountEditor";
 import ProfileEditor, { type ProfileKind } from "./components/ProfileEditor";
 import ProfileCard from "./components/ProfileCard";
 import Modal from "./components/Modal";
 import SessionEditor from "./components/SessionEditor";
+import AccountBoard from "./blocks/AccountBoard";
 import SessionBoard from "./blocks/SessionBoard";
-import { createConfigService, parseConfig, serializeConfig } from "./services/configService";
+import {
+  createConfigService,
+  parseConfig,
+  serializeConfig,
+  type ConfigScope,
+} from "./services/configService";
+import { buildClaudeJson, buildClaudeSettingsJson } from "./services/claudeConfig";
+import { resolveAccountBinding } from "./services/accountBinding";
 import { buildCodexConfig } from "./services/codexConfig";
 import {
+  getDefaultSessionHome,
   parseSessionProjectPath,
+  resolveOfficialLoginCommand,
+  resolveOfficialLoginFlow,
+  setSessionBoundAccount,
+  setSessionClientType,
   setSessionIdeProfile,
   setSessionTerminalProfile,
 } from "./models/session";
 import { useI18n } from "./i18n";
 import type {
   AppConfig,
+  AuthAccount,
   IdeProfile,
+  SessionClientType,
   SessionConfig,
   TerminalProfile,
 } from "./types/config";
@@ -43,7 +60,9 @@ const EMPTY_CONFIG: AppConfig = {
   sessions: [],
   terminalProfiles: [],
   ideProfiles: [],
+  accounts: [],
 };
+const CONFIG_SCOPE_STORAGE_KEY = "clipods.configScope";
 
 const App = () => {
   const [config, setConfig] = useState<AppConfig>(EMPTY_CONFIG);
@@ -75,6 +94,8 @@ const App = () => {
   const [editingProfile, setEditingProfile] = useState<
     TerminalProfile | IdeProfile | null
   >(null);
+  const [accountEditorOpen, setAccountEditorOpen] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<AuthAccount | null>(null);
   const [theme, setTheme] = useState<"light" | "dark">(() => {
     if (typeof window === "undefined") {
       return "light";
@@ -85,6 +106,13 @@ const App = () => {
     }
     const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
     return prefersDark ? "dark" : "light";
+  });
+  const [configScope, setConfigScope] = useState<ConfigScope>(() => {
+    if (typeof window === "undefined") {
+      return "codex";
+    }
+    const saved = window.localStorage.getItem(CONFIG_SCOPE_STORAGE_KEY);
+    return saved === "claude" ? "claude" : "codex";
   });
   const { t, locale, setLocale } = useI18n();
 
@@ -106,9 +134,35 @@ const App = () => {
   );
 
   const configService = useMemo(
-    () => createConfigService(fileClient, pathProvider),
-    [fileClient, pathProvider]
+    () => createConfigService(fileClient, pathProvider, { scope: configScope }),
+    [configScope, fileClient, pathProvider]
   );
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.localStorage.setItem(CONFIG_SCOPE_STORAGE_KEY, configScope);
+  }, [configScope]);
+
+  const findBoundAccount = (session: SessionConfig): AuthAccount | undefined =>
+    session.boundAccountId
+      ? config.accounts.find((account) => account.id === session.boundAccountId)
+      : undefined;
+
+  const resolveRuntimeSession = (session: SessionConfig) => {
+    const account = findBoundAccount(session);
+    const binding = resolveAccountBinding(session, account);
+    return {
+      account,
+      binding,
+      runtimeSession: {
+        ...session,
+        loginType: binding.loginType,
+        env: binding.env,
+      },
+    };
+  };
 
   const writeCodexConfigFile = async (
     session: SessionConfig,
@@ -123,20 +177,49 @@ const App = () => {
 
   const writeCodexAuthFile = async (
     session: SessionConfig,
-    resolvedHome: string | null
+    resolvedHome: string | null,
+    authPayload?: ReturnType<typeof resolveAccountBinding>["authPayload"]
   ): Promise<void> => {
-    if (session.loginType !== "api") {
+    if (!authPayload) {
       return;
     }
-    const apiKey = session.env?.OPENAI_API_KEY?.trim();
-    if (!apiKey) {
-      return;
-    }
-    const contents = JSON.stringify({ OPENAI_API_KEY: apiKey }, null, 2);
+    const contents =
+      authPayload.kind === "chatgpt"
+        ? authPayload.json
+        : JSON.stringify({ OPENAI_API_KEY: authPayload.apiKey }, null, 2);
     await invoke("write_codex_auth", {
       path: resolvedHome ?? session.codexHome,
       contents,
     });
+  };
+
+  const writeClaudeConfigFiles = async (
+    session: SessionConfig,
+    resolvedHome: string | null
+  ): Promise<void> => {
+    const settings = buildClaudeSettingsJson(session);
+    const claudeJson = buildClaudeJson(session);
+    const targetPath = resolvedHome ?? session.codexHome;
+    const tasks: Array<Promise<unknown>> = [];
+    if (settings) {
+      tasks.push(
+        invoke("write_claude_settings", {
+          path: targetPath,
+          contents: settings,
+        })
+      );
+    }
+    if (claudeJson) {
+      tasks.push(
+        invoke("write_claude_json", {
+          path: targetPath,
+          contents: claudeJson,
+        })
+      );
+    }
+    if (tasks.length > 0) {
+      await Promise.all(tasks);
+    }
   };
 
   const ensureCodexRuntimeDefaults = async (
@@ -154,6 +237,9 @@ const App = () => {
   useEffect(() => {
     let mounted = true;
     const loadConfig = async () => {
+      if (mounted) {
+        setLoading(true);
+      }
       const loaded = await configService.load();
       if (mounted) {
         setConfig(loaded);
@@ -216,7 +302,15 @@ const App = () => {
     const loadStatus = async () => {
       const entries = await Promise.all(
         config.sessions.map(async (session) => {
-          if (session.loginType !== "chatgpt") {
+          const account = findBoundAccount(session);
+          const binding = resolveAccountBinding(session, account);
+          if (!isCodexClient(session)) {
+            return [session.id, binding.loginType === "api" ? "api" : "missing"] as const;
+          }
+          if (account?.type === "chatgpt") {
+            return [session.id, "chatgpt"] as const;
+          }
+          if (binding.loginType !== "chatgpt") {
             return [session.id, "api"] as const;
           }
           try {
@@ -243,13 +337,13 @@ const App = () => {
     return () => {
       active = false;
     };
-  }, [config.sessions]);
+  }, [config.accounts, config.sessions]);
 
   const sanitizeEnvForLoginType = (
-    session: SessionConfig,
+    loginType: SessionConfig["loginType"],
     env: Record<string, string>
   ): Record<string, string> => {
-    if (session.loginType !== "chatgpt") {
+    if (loginType !== "chatgpt") {
       return env;
     }
     const filtered = { ...env };
@@ -258,8 +352,20 @@ const App = () => {
     delete filtered.OPENAI_MODEL;
     delete filtered.OPENAI_ORGANIZATION;
     delete filtered.OPENAI_PROJECT;
+    delete filtered.ANTHROPIC_API_KEY;
+    delete filtered.ANTHROPIC_AUTH_TOKEN;
+    delete filtered.ANTHROPIC_BASE_URL;
+    delete filtered.ANTHROPIC_MODEL;
     return filtered;
   };
+
+  const isCodexClient = (session: SessionConfig): boolean =>
+    (session.clientType ?? "codex") === "codex";
+
+  const resolveLoginUrl = (session: SessionConfig): string =>
+    isCodexClient(session)
+      ? "https://chatgpt.com/codex"
+      : "https://claude.ai/login";
 
   const resolveCodexAppPath = (session: SessionConfig): string => {
     const trimmed = session.codexAppPath?.trim();
@@ -282,7 +388,20 @@ const App = () => {
   };
 
   const refreshLoginStatus = async (session: SessionConfig) => {
-    if (session.loginType !== "chatgpt") {
+    const account = findBoundAccount(session);
+    const binding = resolveAccountBinding(session, account);
+    if (!isCodexClient(session)) {
+      setLoginStatusMap((prev) => ({
+        ...prev,
+        [session.id]: binding.loginType === "api" ? "api" : "missing",
+      }));
+      return;
+    }
+    if (account?.type === "chatgpt") {
+      setLoginStatusMap((prev) => ({ ...prev, [session.id]: "chatgpt" }));
+      return;
+    }
+    if (binding.loginType !== "chatgpt") {
       setLoginStatusMap((prev) => ({ ...prev, [session.id]: "api" }));
       return;
     }
@@ -298,7 +417,9 @@ const App = () => {
   };
 
   const pollLoginStatus = (session: SessionConfig) => {
-    if (session.loginType !== "chatgpt") {
+    const account = findBoundAccount(session);
+    const binding = resolveAccountBinding(session, account);
+    if (!isCodexClient(session) || binding.loginType !== "chatgpt" || Boolean(account)) {
       return;
     }
     let attempts = 0;
@@ -374,6 +495,18 @@ const App = () => {
     );
   }, [config.ideProfiles, searchValue]);
 
+  const filteredAccounts = useMemo(() => {
+    if (!searchValue) {
+      return config.accounts;
+    }
+    const keyword = searchValue.toLowerCase();
+    return config.accounts.filter(
+      (account) =>
+        account.name.toLowerCase().includes(keyword) ||
+        account.type.toLowerCase().includes(keyword)
+    );
+  }, [config.accounts, searchValue]);
+
   const resolveStatusTone = (value: string): "success" | "error" | "neutral" => {
     if (/失败|错误|无法|失败|fail|error|unable|forbidden|not found|missing/i.test(value)) {
       return "error";
@@ -386,6 +519,7 @@ const App = () => {
 
   const tabs = [
     { id: "sessions", label: t("tab.sessions"), count: config.sessions.length },
+    { id: "accounts", label: t("tab.accounts"), count: config.accounts.length },
     { id: "terminals", label: t("tab.terminals"), count: config.terminalProfiles.length },
     { id: "ides", label: t("tab.ides"), count: config.ideProfiles.length },
   ];
@@ -396,7 +530,10 @@ const App = () => {
       setEditingSession({
         id,
         name: t("session.defaultName", { index: config.sessions.length + 1 }),
-        codexHome: "~/.codex",
+        codexHome: getDefaultSessionHome(
+          configScope === "claude" ? "claude" : "codex"
+        ),
+        clientType: configScope === "claude" ? "claude" : "codex",
         loginType: "chatgpt",
       });
       setEditorOpen(true);
@@ -407,6 +544,18 @@ const App = () => {
 
   const handleEditSession = (session: SessionConfig) => {
     setEditingSession(session);
+    setEditorOpen(true);
+  };
+
+  const handleDuplicateSession = async (session: SessionConfig) => {
+    const newId = `session-${Date.now()}`;
+    const duplicatedSession: SessionConfig = {
+      ...session,
+      id: newId,
+      name: `${session.name} (副本)`,
+    };
+
+    setEditingSession(duplicatedSession);
     setEditorOpen(true);
   };
 
@@ -452,11 +601,18 @@ const App = () => {
 
     if (!ensureFailed) {
       try {
-        await writeCodexConfigFile(session, resolvedHome);
-        await writeCodexAuthFile(session, resolvedHome);
+        const { binding, runtimeSession } = resolveRuntimeSession(session);
+        if (isCodexClient(runtimeSession)) {
+          await writeCodexConfigFile(runtimeSession, resolvedHome);
+          await writeCodexAuthFile(runtimeSession, resolvedHome, binding.authPayload);
+        } else {
+          await writeClaudeConfigFiles(runtimeSession, resolvedHome);
+        }
         refreshLoginStatus(session).catch(() => undefined);
       } catch (error) {
-        statusText = t("status.codexConfigWriteFailed", { prefix: statusText });
+        statusText = isCodexClient(session)
+          ? t("status.codexConfigWriteFailed", { prefix: statusText })
+          : t("status.claudeConfigWriteFailed", { prefix: statusText });
       }
     }
     setStatus(statusText);
@@ -535,6 +691,121 @@ const App = () => {
       setStatus(t("status.sessionIdeUpdated"));
     } catch (error) {
       setStatus(t("status.sessionSaveFailed"));
+    }
+  };
+
+  const handleSwitchClientType = async (
+    session: SessionConfig,
+    clientType: SessionClientType
+  ) => {
+    const nextSessions = config.sessions.map((entry) =>
+      entry.id === session.id
+        ? (() => {
+            const nextSession = setSessionClientType(entry, clientType);
+            const boundAccount = findBoundAccount(nextSession);
+            if (clientType === "claude" && boundAccount?.type === "chatgpt") {
+              return setSessionBoundAccount(nextSession, undefined);
+            }
+            return nextSession;
+          })()
+        : entry
+    );
+    const next: AppConfig = {
+      ...config,
+      sessions: nextSessions,
+    };
+    const nextSession = nextSessions.find((entry) => entry.id === session.id);
+    setConfig(next);
+    if (editingSession?.id === session.id) {
+      const updatedEditingSession = nextSessions.find((entry) => entry.id === session.id);
+      if (updatedEditingSession) {
+        setEditingSession(updatedEditingSession);
+      }
+    }
+    try {
+      await configService.save(next);
+      if (nextSession) {
+        refreshLoginStatus(nextSession).catch(() => undefined);
+      }
+      setStatus(t("status.sessionClientUpdated"));
+    } catch (error) {
+      setStatus(t("status.sessionSaveFailed"));
+    }
+  };
+
+  const handleCreateAccount = () => {
+    const allowChatGPT = configScope === "codex";
+    const account: AuthAccount = allowChatGPT
+      ? {
+          id: `account-${Date.now()}`,
+          name: t("account.defaultName", { index: config.accounts.length + 1 }),
+          type: "chatgpt",
+          authJson: "",
+        }
+      : {
+          id: `account-${Date.now()}`,
+          name: t("account.defaultName", { index: config.accounts.length + 1 }),
+          type: "api",
+          apiKey: "",
+        };
+    setEditingAccount(account);
+    setAccountEditorOpen(true);
+  };
+
+  const handleEditAccount = (account: AuthAccount) => {
+    setEditingAccount(account);
+    setAccountEditorOpen(true);
+  };
+
+  const handleSaveAccount = async (account: AuthAccount) => {
+    const exists = config.accounts.some((entry) => entry.id === account.id);
+    const nextAccounts = exists
+      ? config.accounts.map((entry) => (entry.id === account.id ? account : entry))
+      : [...config.accounts, account];
+    const next: AppConfig = {
+      ...config,
+      accounts: nextAccounts,
+    };
+
+    setConfig(next);
+    setAccountEditorOpen(false);
+    setEditingAccount(null);
+
+    try {
+      await configService.save(next);
+      setStatus(exists ? t("status.accountUpdated") : t("status.accountCreated"));
+    } catch {
+      setStatus(t("status.accountSaveFailed"));
+    }
+  };
+
+  const handleDeleteAccount = async (account: AuthAccount) => {
+    const confirmed = window.confirm(t("modal.delete.confirmAccount"));
+    if (!confirmed) {
+      return;
+    }
+
+    const next: AppConfig = {
+      ...config,
+      accounts: config.accounts.filter((entry) => entry.id !== account.id),
+      sessions: config.sessions.map((session) =>
+        session.boundAccountId === account.id
+          ? setSessionBoundAccount(session, undefined)
+          : session
+      ),
+    };
+
+    setConfig(next);
+    if (editingAccount?.id === account.id) {
+      setEditingAccount(null);
+      setAccountEditorOpen(false);
+    }
+
+    try {
+      await configService.save(next);
+      setStatus(t("status.accountDeleted"));
+    } catch {
+      setStatus(t("status.accountDeleteFailed"));
     }
   };
 
@@ -706,20 +977,33 @@ const App = () => {
       const resolvedHome = await invoke<string>("ensure_codex_home", {
         path: session.codexHome,
       });
-      const mergedEnv = sanitizeEnvForLoginType(session, {
+      const { binding, runtimeSession } = resolveRuntimeSession(session);
+      const mergedEnv = sanitizeEnvForLoginType(binding.loginType, {
         ...(profile?.env ?? {}),
-        ...(session.env ?? {}),
+        ...(binding.env ?? {}),
       });
-      if (resolvedHome) {
+      if (resolvedHome && isCodexClient(runtimeSession)) {
         mergedEnv.CODEX_HOME = resolvedHome;
       }
-      await ensureCodexRuntimeDefaults(resolvedHome ?? null);
       let configFailed = false;
-      try {
-        await writeCodexConfigFile(session, resolvedHome ?? null);
-        await writeCodexAuthFile(session, resolvedHome ?? null);
-      } catch (error) {
-        configFailed = true;
+      if (isCodexClient(runtimeSession)) {
+        await ensureCodexRuntimeDefaults(resolvedHome ?? null);
+        try {
+          await writeCodexConfigFile(runtimeSession, resolvedHome ?? null);
+          await writeCodexAuthFile(
+            runtimeSession,
+            resolvedHome ?? null,
+            binding.authPayload
+          );
+        } catch (error) {
+          configFailed = true;
+        }
+      } else {
+        try {
+          await writeClaudeConfigFiles(runtimeSession, resolvedHome ?? null);
+        } catch (error) {
+          configFailed = true;
+        }
       }
       await invoke("launch_terminal", {
         app: profile?.command,
@@ -728,14 +1012,20 @@ const App = () => {
         command: session.launchCommand,
         env: Object.keys(mergedEnv).length ? mergedEnv : undefined,
       });
-      if (session.loginType === "chatgpt") {
+      if (binding.loginType === "chatgpt" && !binding.account) {
         refreshLoginStatus(session).catch(() => undefined);
       }
-      setStatus(
-        configFailed
-          ? t("status.terminalOpenedConfigFailed")
-          : t("status.terminalOpened")
-      );
+      if (configFailed) {
+        setStatus(
+          isCodexClient(runtimeSession)
+            ? t("status.terminalOpenedConfigFailed")
+            : t("status.claudeConfigWriteFailed", {
+                prefix: t("status.terminalOpened"),
+              })
+        );
+      } else {
+        setStatus(t("status.terminalOpened"));
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setStatus(
@@ -747,7 +1037,7 @@ const App = () => {
   };
 
   const handleLaunchCodexApp = async (session: SessionConfig) => {
-    if (!session.codexAppEnabled) {
+    if (!isCodexClient(session) || !session.codexAppEnabled) {
       setStatus(t("status.codexAppDisabled"));
       return;
     }
@@ -763,8 +1053,9 @@ const App = () => {
       const resolvedHome = await invoke<string>("ensure_codex_home", {
         path: session.codexHome,
       });
-      const mergedEnv = sanitizeEnvForLoginType(session, {
-        ...(session.env ?? {}),
+      const { binding, runtimeSession } = resolveRuntimeSession(session);
+      const mergedEnv = sanitizeEnvForLoginType(binding.loginType, {
+        ...(binding.env ?? {}),
       });
       if (resolvedHome) {
         mergedEnv.CODEX_HOME = resolvedHome;
@@ -784,8 +1075,12 @@ const App = () => {
       }
       let configFailed = false;
       try {
-        await writeCodexConfigFile(session, resolvedHome ?? null);
-        await writeCodexAuthFile(session, resolvedHome ?? null);
+        await writeCodexConfigFile(runtimeSession, resolvedHome ?? null);
+        await writeCodexAuthFile(
+          runtimeSession,
+          resolvedHome ?? null,
+          binding.authPayload
+        );
       } catch (error) {
         configFailed = true;
       }
@@ -795,7 +1090,7 @@ const App = () => {
         allowMultiple: session.codexAppAllowMultiple,
         env: Object.keys(mergedEnv).length ? mergedEnv : undefined,
       });
-      if (session.loginType === "chatgpt") {
+      if (binding.loginType === "chatgpt" && !binding.account) {
         refreshLoginStatus(session).catch(() => undefined);
       }
       setStatus(
@@ -819,27 +1114,52 @@ const App = () => {
         path: session.codexHome,
       });
       const targetProjectPath = parseSessionProjectPath(session.launchCommand);
-      const mergedEnv = sanitizeEnvForLoginType(session, {
-        ...(session.env ?? {}),
+      const { binding, runtimeSession } = resolveRuntimeSession(session);
+      const mergedEnv = sanitizeEnvForLoginType(binding.loginType, {
+        ...(binding.env ?? {}),
       });
-      if (resolvedHome) {
+      if (resolvedHome && isCodexClient(runtimeSession)) {
         mergedEnv.CODEX_HOME = resolvedHome;
       }
-      await ensureCodexRuntimeDefaults(resolvedHome ?? null);
       let configFailed = false;
-      try {
-        await writeCodexConfigFile(session, resolvedHome ?? null);
-        await writeCodexAuthFile(session, resolvedHome ?? null);
-      } catch (error) {
-        configFailed = true;
+      if (isCodexClient(runtimeSession)) {
+        await ensureCodexRuntimeDefaults(resolvedHome ?? null);
+        try {
+          await writeCodexConfigFile(runtimeSession, resolvedHome ?? null);
+          await writeCodexAuthFile(
+            runtimeSession,
+            resolvedHome ?? null,
+            binding.authPayload
+          );
+        } catch (error) {
+          configFailed = true;
+        }
+      } else {
+        try {
+          await writeClaudeConfigFiles(runtimeSession, resolvedHome ?? null);
+        } catch (error) {
+          configFailed = true;
+        }
       }
       await invoke("launch_ide", {
         app: profile?.command ?? "Visual Studio Code",
         args: profile?.args,
         targetPath: targetProjectPath,
         env: Object.keys(mergedEnv).length ? mergedEnv : undefined,
+        forceNewInstance:
+          isCodexClient(runtimeSession) && binding.loginType === "api",
       });
-      setStatus(configFailed ? t("status.ideOpenedConfigFailed") : t("status.ideOpened"));
+      if (configFailed) {
+        setStatus(
+          isCodexClient(runtimeSession)
+            ? t("status.ideOpenedConfigFailed")
+            : t("status.claudeConfigWriteFailed", {
+                prefix: t("status.ideOpened"),
+              })
+        );
+      } else {
+        setStatus(t("status.ideOpened"));
+      }
     } catch (error) {
       setStatus(t("status.ideLaunchFailed"));
     }
@@ -849,7 +1169,12 @@ const App = () => {
     session: SessionConfig,
     profile?: TerminalProfile
   ) => {
-    if (session.loginType !== "chatgpt") {
+    const { account, binding, runtimeSession } = resolveRuntimeSession(session);
+    if (account) {
+      setStatus(t("status.accountBoundLoginHint"));
+      return;
+    }
+    if (binding.loginType !== "chatgpt") {
       setStatus(t("status.apiLoginHint"));
       return;
     }
@@ -857,34 +1182,77 @@ const App = () => {
       const resolvedHome = await invoke<string>("ensure_codex_home", {
         path: session.codexHome,
       });
-      const mergedEnv = sanitizeEnvForLoginType(session, {
-        ...(profile?.env ?? {}),
-        ...(session.env ?? {}),
-      });
-      if (resolvedHome) {
-        mergedEnv.CODEX_HOME = resolvedHome;
-      }
-      await ensureCodexRuntimeDefaults(resolvedHome ?? null);
       let configFailed = false;
-      try {
-        await writeCodexConfigFile(session, resolvedHome ?? null);
-        await writeCodexAuthFile(session, resolvedHome ?? null);
-      } catch (error) {
-        configFailed = true;
+      if (isCodexClient(runtimeSession)) {
+        await ensureCodexRuntimeDefaults(resolvedHome ?? null);
+        try {
+          await writeCodexConfigFile(runtimeSession, resolvedHome ?? null);
+          await writeCodexAuthFile(
+            runtimeSession,
+            resolvedHome ?? null,
+            binding.authPayload
+          );
+        } catch (error) {
+          configFailed = true;
+        }
+      } else {
+        try {
+          await writeClaudeConfigFiles(runtimeSession, resolvedHome ?? null);
+        } catch (error) {
+          configFailed = true;
+        }
       }
-      await invoke("launch_terminal", {
-        app: profile?.command,
-        args: profile?.args,
-        workingDir: resolvedHome,
-        command: "codex login",
-        env: Object.keys(mergedEnv).length ? mergedEnv : undefined,
-      });
-      pollLoginStatus(session);
-      setStatus(
-        configFailed
-          ? t("status.loginOpenedConfigFailed")
-          : t("status.loginOpened")
-      );
+      const officialLoginFlow = resolveOfficialLoginFlow(runtimeSession);
+      if (officialLoginFlow === "terminal") {
+        const loginCommand = resolveOfficialLoginCommand(runtimeSession);
+        if (!loginCommand) {
+          throw new Error("missing official login command");
+        }
+        if (profile?.command) {
+          const installed = await invoke<boolean>("check_app_installed", {
+            app: profile.command,
+          });
+          if (!installed) {
+            await openUrl(resolveLoginUrl(session));
+            setStatus(t("status.loginOpened"));
+            return;
+          }
+        }
+        const mergedEnv = sanitizeEnvForLoginType(binding.loginType, {
+          ...(profile?.env ?? {}),
+          ...(binding.env ?? {}),
+        });
+        if (resolvedHome && isCodexClient(runtimeSession)) {
+          mergedEnv.CODEX_HOME = resolvedHome;
+        }
+        try {
+          await invoke("launch_terminal", {
+            app: profile?.command,
+            args: profile?.args,
+            workingDir: resolvedHome,
+            command: loginCommand,
+            env: Object.keys(mergedEnv).length ? mergedEnv : undefined,
+          });
+        } catch (terminalError) {
+          await openUrl(resolveLoginUrl(session));
+        }
+        if (isCodexClient(runtimeSession)) {
+          pollLoginStatus(session);
+        }
+      } else if (officialLoginFlow === "browser" || !isCodexClient(runtimeSession)) {
+        await openUrl(resolveLoginUrl(session));
+      }
+      if (configFailed) {
+        setStatus(
+          isCodexClient(runtimeSession)
+            ? t("status.loginOpenedConfigFailed")
+            : t("status.claudeConfigWriteFailed", {
+                prefix: t("status.loginOpened"),
+              })
+        );
+      } else {
+        setStatus(t("status.loginOpened"));
+      }
     } catch (error) {
       setStatus(t("status.loginLaunchFailed"));
     }
@@ -907,6 +1275,22 @@ const App = () => {
     } catch (error) {
       setStatus(t("status.configOpenFailed"));
     }
+  };
+
+  const handleSwitchConfigScope = (scope: ConfigScope) => {
+    setEditorOpen(false);
+    setEditingSession(null);
+    setSearchValue("");
+    setLoading(true);
+    setConfigScope(scope);
+    setStatus(
+      t("status.configScopeSwitched", {
+        scope:
+          scope === "claude"
+            ? t("action.configScopeClaude")
+            : t("action.configScopeCodex"),
+      })
+    );
   };
 
   const handleImport = async () => {
@@ -1082,19 +1466,20 @@ const App = () => {
         </div>
         <SegmentTabs items={tabs} activeId={activeTab} onChange={setActiveTab} />
         <div className="top-actions">
-          {status ? (
-            <span
-              className={`top-status top-status-${resolveStatusTone(status)}`}
-            >
-              {status}
-            </span>
-          ) : null}
-          <button type="button" className="btn btn-ghost" onClick={handleOpenHelp}>
-            {t("action.help")}
-          </button>
-          <button type="button" className="btn btn-ghost" onClick={handleCheckUpdates}>
-            {t("action.checkUpdates")}
-          </button>
+          <select
+            className="field-input top-scope-select"
+            value={configScope}
+            onChange={(event) =>
+              handleSwitchConfigScope(
+                event.target.value === "claude" ? "claude" : "codex"
+              )
+            }
+            aria-label={t("action.configScope")}
+            title={t("action.configScope")}
+          >
+            <option value="codex">{t("action.configScopeCodex")}</option>
+            <option value="claude">{t("action.configScopeClaude")}</option>
+          </select>
           <button type="button" className="btn btn-ghost" onClick={handleRevealConfig}>
             {t("action.openConfigDir")}
           </button>
@@ -1131,27 +1516,35 @@ const App = () => {
             searchValue={searchValue}
             onSearchChange={setSearchValue}
             actionLabel={
-              activeTab === "terminals"
+              activeTab === "accounts"
+                ? t("empty.accounts.action")
+                : activeTab === "terminals"
                 ? t("empty.terminals.action")
                 : t("empty.ides.action")
             }
             onCreate={() =>
-              handleCreateProfile(
-                activeTab === "terminals" ? "terminal" : "ide"
-              )
+              activeTab === "accounts"
+                ? handleCreateAccount()
+                : handleCreateProfile(
+                    activeTab === "terminals" ? "terminal" : "ide"
+                  )
             }
             labels={{
               searchPlaceholder: t("profileToolbar.search.placeholder"),
               searchAria: t("profileToolbar.search.aria"),
               total: t("profileToolbar.total", {
                 count:
-                  activeTab === "terminals"
+                  activeTab === "accounts"
+                    ? config.accounts.length
+                    : activeTab === "terminals"
                     ? config.terminalProfiles.length
                     : config.ideProfiles.length,
               }),
               filtered: t("profileToolbar.show", {
                 count:
-                  activeTab === "terminals"
+                  activeTab === "accounts"
+                    ? filteredAccounts.length
+                    : activeTab === "terminals"
                     ? filteredTerminalProfiles.length
                     : filteredIdeProfiles.length,
               }),
@@ -1169,6 +1562,7 @@ const App = () => {
         {!loading && activeTab === "sessions" ? (
           <SessionBoard
             sessions={filteredSessions}
+            accounts={config.accounts}
             terminalProfiles={config.terminalProfiles}
             ideProfiles={config.ideProfiles}
             defaultSessionId={config.defaultSessionId}
@@ -1180,8 +1574,21 @@ const App = () => {
             onLogin={handleLogin}
             onRevealHome={handleRevealHome}
             onEditSession={handleEditSession}
+            onDuplicateSession={handleDuplicateSession}
+            onSwitchClientType={handleSwitchClientType}
             onSwitchTerminalProfile={handleSwitchTerminalProfile}
             onSwitchIdeProfile={handleSwitchIdeProfile}
+          />
+        ) : null}
+
+        {!loading && activeTab === "accounts" ? (
+          <AccountBoard
+            accounts={filteredAccounts}
+            onCreateAccount={handleCreateAccount}
+            onEditAccount={handleEditAccount}
+            onDeleteAccount={(account) => {
+              handleDeleteAccount(account).catch(() => undefined);
+            }}
           />
         ) : null}
 
@@ -1234,6 +1641,20 @@ const App = () => {
         ) : null}
       </main>
 
+      <footer className="bottom-bar surface">
+        <span className={`bottom-status bottom-status-${resolveStatusTone(status ?? "")}`}>
+          {status ?? t("status.ready")}
+        </span>
+        <div className="bottom-actions">
+          <button type="button" className="bottom-action-text" onClick={handleCheckUpdates}>
+            {t("action.checkUpdates")}
+          </button>
+          <button type="button" className="bottom-action-text" onClick={handleOpenHelp}>
+            {t("action.help")}
+          </button>
+        </div>
+      </footer>
+
       {editingSession ? (
         <SessionEditor
           open={editorOpen}
@@ -1243,6 +1664,7 @@ const App = () => {
           }
           terminalProfiles={config.terminalProfiles}
           ideProfiles={config.ideProfiles}
+          accounts={config.accounts}
           onCreateTerminalProfile={() =>
             handleCreateProfile("terminal", editingSession.id)
           }
@@ -1254,6 +1676,30 @@ const App = () => {
           onDelete={
             config.sessions.some((entry) => entry.id === editingSession.id)
               ? handleDeleteSession
+              : undefined
+          }
+        />
+      ) : null}
+
+      {editingAccount ? (
+        <AccountEditor
+          open={accountEditorOpen}
+          account={editingAccount}
+          isNew={!config.accounts.some((entry) => entry.id === editingAccount.id)}
+          allowChatGPT={configScope === "codex"}
+          onSave={handleSaveAccount}
+          onCancel={() => {
+            setAccountEditorOpen(false);
+            setEditingAccount(null);
+          }}
+          onDelete={
+            config.accounts.some((entry) => entry.id === editingAccount.id)
+              ? (accountId) => {
+                  const found = config.accounts.find((entry) => entry.id === accountId);
+                  if (found) {
+                    handleDeleteAccount(found).catch(() => undefined);
+                  }
+                }
               : undefined
           }
         />

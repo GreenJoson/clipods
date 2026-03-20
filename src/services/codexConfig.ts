@@ -1,7 +1,7 @@
 /**
  * @input  依赖：SessionConfig 类型、环境变量映射、TOML 字符转义
- * @output 导出：Codex config.toml 生成器（clipods 标记、API 会话默认协作特性注入）
- * @pos    会话配置到 Codex CLI 配置的转换层（含转义与 feature 冲突规避）
+ * @output 导出：Codex config.toml 生成器（clipods 标记、API 会话默认运行特性注入）
+ * @pos    会话配置到 Codex CLI 配置的转换层（含转义与 feature 冲突规避、特性迁移）
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
@@ -103,11 +103,9 @@ export const buildCodexConfig = (session: SessionConfig): string => {
   if (session.loginType === "api" && !hasFeatureConfig(extra)) {
     lines.push("");
     lines.push("[features]");
-    lines.push("collab = true");
-    lines.push("collaboration_modes = true");
+    lines.push("multi_agent = true");
     lines.push("unified_exec = true");
     lines.push("shell_snapshot = true");
-    lines.push("steer = true");
   }
 
   if (extra.trim()) {

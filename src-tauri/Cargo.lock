@@ -452,8 +452,9 @@ dependencies = [
 
 [[package]]
 name = "clipods"
-version = "0.2.5"
+version = "0.2.9"
 dependencies = [
+ "rand 0.8.5",
  "serde",
  "serde_json",
  "tauri",

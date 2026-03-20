@@ -1,7 +1,7 @@
 /**
  * @input  依赖：vitest, buildCodexConfig
  * @output 导出：Codex 配置生成测试
- * @pos    校验会话到 config.toml 的核心映射
+ * @pos    校验会话到 config.toml 的核心映射（含新 feature 默认值）
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
@@ -48,11 +48,12 @@ describe("buildCodexConfig", () => {
     expect(output).toContain("requires_openai_auth = false");
     expect(output).toContain('base_url = "https://api.openai.com/v1"');
     expect(output).toContain("[features]");
-    expect(output).toContain("collab = true");
-    expect(output).toContain("collaboration_modes = true");
+    expect(output).toContain("multi_agent = true");
     expect(output).toContain("unified_exec = true");
     expect(output).toContain("shell_snapshot = true");
-    expect(output).toContain("steer = true");
+    expect(output).not.toContain("collab = true");
+    expect(output).not.toContain("collaboration_modes = true");
+    expect(output).not.toContain("steer = true");
     expect(output).not.toContain("env_key");
   });
 
@@ -70,7 +71,8 @@ describe("buildCodexConfig", () => {
     expect(output).toContain('env_key = "OPENAI_API_KEY"');
     expect(output).not.toContain("base_url =");
     expect(output).toContain("[features]");
-    expect(output).toContain("collab = true");
+    expect(output).toContain("multi_agent = true");
+    expect(output).not.toContain("collab = true");
   });
 
   it("does not inject default features when extra config already defines features", () => {
@@ -80,22 +82,22 @@ describe("buildCodexConfig", () => {
       env: {
         OPENAI_API_KEY: "sk-test",
       },
-      extraConfigToml: "[features]\ncollab = false\nshell_snapshot = false",
+      extraConfigToml: "[features]\nmulti_agent = false\nshell_snapshot = false",
     });
 
     const featureHeaderCount = (output.match(/\[features\]/gu) ?? []).length;
     expect(featureHeaderCount).toBe(1);
-    expect(output).toContain("collab = false");
+    expect(output).toContain("multi_agent = false");
     expect(output).toContain("shell_snapshot = false");
   });
 
   it("appends extra config toml at the end", () => {
     const output = buildCodexConfig({
       ...baseSession,
-      extraConfigToml: "[features]\ncollab = true",
+      extraConfigToml: "[features]\nmulti_agent = true",
     });
 
     expect(output).toContain("# --- extra config (appended) ---");
-    expect(output).toContain("[features]\ncollab = true");
+    expect(output).toContain("[features]\nmulti_agent = true");
   });
 });

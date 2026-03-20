@@ -8,12 +8,19 @@ clipods：Codex CLI 多会话启动器（Tauri + React）。
 ## 核心能力
 
 - 多账号会话：每个会话绑定独立的 `CODEX_HOME` 与登录方式（官方/API）。
+- 可复用账号池：支持保存 Codex ChatGPT `auth.json`、Codex API Key，以及 Claude API 凭据，并按会话一键绑定切换。
 - 终端与 IDE 配置：为不同工具定义启动命令与参数。
 - 导入/导出：支持配置文件 TOML 导入导出。
 - 一键启动：直接打开终端/IDE，并定位到会话目录（IDE 启动优先按 `launchCommand --cd` 打开项目目录，并注入会话级 `CODEX_HOME` 与环境变量）。
 - Codex.app：支持多开与多会话隔离（独立 userDataDir），便于并行登录/切换。
 - 会话内切换：可在会话卡片直接切换终端/IDE 配置，并自动记忆为该会话默认配置。
 - 运行时自愈：启动前自动补齐会话目录中的 `AGENTS.md` 与 `.codex-global-state.json`（避免部分实例缺少实时过程提示）。
+
+## 0.2.10 更新重点
+
+- 账号页改成更短、更紧凑的横向卡片，减少大面积空白。
+- 类型徽章、能力标签和编辑/删除操作重新编排，更适合快速浏览多个账号。
+- 同步版本到 `package.json` / `Cargo.toml` / `tauri.conf.json`（统一 `0.2.10`）。
 
 ## 0.2.5 更新重点
 
@@ -64,14 +71,16 @@ cat <CODEX_HOME>/.codex-global-state.json
 
 ## 使用指南
 
-1. 新建会话：设置名称、`CODEX_HOME` 与登录方式（官方 / API）。
-2. 终端配置：输入应用名称或 `.app` 路径（如 Terminal、iTerm2、`/Applications/Warp.app`），支持拖拽 `.app` 进输入框；可选参数与环境变量。
-3. IDE 配置：输入应用名称或 `.app` 路径（如 VS Code、Cursor、`/Applications/Cursor.app`），可选启动参数。
-4. 会话绑定：为会话选择终端/IDE 配置，保存后即可一键启动。
-5. 导入导出：使用工具栏导入/导出 TOML，便于备份或多机同步。
-6. 会话启动命令：在会话里填写 `codex ...` 启动命令，打开终端时自动执行。
-7. Codex.app：可选开启多开与多会话隔离，适合同时登录多个账号。
-8. 帮助入口：右上角“帮助”可查看首次启动与更新说明。
+1. 新建账号：先在“账号”页保存可复用凭据。Codex 支持 ChatGPT `auth.json` / API，Claude 支持 API 凭据复用。
+2. 新建会话：设置名称、`CODEX_HOME` / `CLAUDE_HOME`、客户端与登录方式（官方 / API）。
+3. 会话绑定账号：在会话编辑器里选择“复用账号”，启动前会自动把认证投影到该会话目录。
+4. 终端配置：输入应用名称或 `.app` 路径（如 Terminal、iTerm2、`/Applications/Warp.app`），支持拖拽 `.app` 进输入框；可选参数与环境变量。
+5. IDE 配置：输入应用名称或 `.app` 路径（如 VS Code、Cursor、`/Applications/Cursor.app`），可选启动参数。
+6. 导入导出：使用工具栏导入/导出 TOML，便于备份或多机同步。
+7. 会话启动命令：在会话里填写 `codex ...` / `claude ...` 启动命令，打开终端时自动执行。
+8. Codex.app：可选开启多开与多会话隔离，适合同时登录多个账号。
+9. 帮助入口：右上角“帮助”可查看首次启动与更新说明。
+10. 官方登录：未绑定账号的 Codex/Claude 会话点击“官方登录”会优先拉起终端执行登录链路（`codex` / `claude login`），若失败回退浏览器登录页。
 
 ## 命令与参数说明
 
@@ -115,6 +124,7 @@ npm run tauri dev
 - 配置文件保存在系统应用配置目录（由 Tauri `appConfigDir()` 决定）。
 - 会话、终端、IDE 配置统一由 TOML 存储与加载。
 - 保存会话/打开终端时，会在该会话的 `CODEX_HOME/config.toml` 写入 Codex CLI 配置，用于固定登录方式与模型相关设置，避免再次弹窗询问。
+- 若会话绑定了可复用账号，启动前会优先把账号认证投影到目标 `CODEX_HOME/auth.json` 或 Claude `ANTHROPIC_*` 环境变量。
 - 会话支持填写 `OPENAI_ORGANIZATION` / `OPENAI_PROJECT`，并可追加“高级自定义 TOML”（追加到会话配置末尾）。
 - API 登录会话会写入 `CODEX_HOME/auth.json`（仅包含 `OPENAI_API_KEY`），以匹配中转/自定义 provider 的用法。
 

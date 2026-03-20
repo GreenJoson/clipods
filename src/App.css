@@ -1,7 +1,7 @@
 /**
  * @input  依赖：./styles/theme.css
- * @output 导出：应用主界面样式（含紧凑卡片、主题切换、粘性顶栏与滚动容器）
- * @pos    启动器 UI 视觉与布局定义
+ * @output 导出：应用主界面样式（含账号卡片/编辑器、紧凑卡片、主题切换、粘性顶栏、配置集切换、底部信息栏与滚动容器）
+ * @pos    启动器 UI 视觉与布局定义（含账号池表单、顶部配置集切换控件与底部文字操作区）
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
  */
@@ -205,6 +205,14 @@
   gap: var(--space-sm);
 }
 
+.top-scope-select {
+  min-width: 150px;
+  height: 34px;
+  font-size: 0.82rem;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
 .top-status {
   font-size: 0.85rem;
   color: var(--color-text-muted);
@@ -224,6 +232,52 @@
   color: var(--color-status-error);
   background: var(--color-status-error-bg);
   border-color: color-mix(in srgb, var(--color-status-error) 20%, transparent);
+}
+
+.bottom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-xs) var(--space-lg);
+  border-radius: var(--radius-lg);
+}
+
+.bottom-status {
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+
+.bottom-status-success {
+  color: var(--color-status-success);
+}
+
+.bottom-status-error {
+  color: var(--color-status-error);
+}
+
+.bottom-status-neutral {
+  color: var(--color-text-muted);
+}
+
+.bottom-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.bottom-action-text {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  padding: 0;
+  cursor: pointer;
+}
+
+.bottom-action-text:hover {
+  color: var(--color-text-primary);
+  text-decoration: underline;
 }
 
 .status-pill {
@@ -376,7 +430,7 @@
 
 .profile-grid {
   display: grid;
-  gap: var(--space-md);
+  gap: var(--space-sm);
 }
 
 .session-card {
@@ -413,6 +467,78 @@
 .profile-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
+}
+
+.account-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-sm) var(--space-md);
+  align-items: center;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-surface) 88%, var(--color-accent-soft) 12%),
+    var(--color-surface)
+  );
+  border: 1px solid color-mix(in srgb, var(--color-border) 82%, var(--color-accent) 18%);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.account-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: color-mix(in srgb, var(--color-border) 55%, var(--color-accent) 45%);
+}
+
+.account-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+}
+
+.account-card-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.account-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.account-card-title {
+  min-width: 0;
+}
+
+.account-card-detail {
+  margin-left: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account-card-capability {
+  width: fit-content;
+  font-size: 0.74rem;
+  padding: 0.22rem 0.6rem;
+  background: color-mix(in srgb, var(--color-bg-canvas) 72%, var(--color-surface) 28%);
+}
+
+.account-card-actions {
+  gap: var(--space-xs);
+}
+
+.account-card-button {
+  padding: 0.38rem 0.8rem;
+  font-size: 0.8rem;
 }
 
 .session-title {
@@ -629,6 +755,12 @@
   gap: var(--space-sm);
 }
 
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -832,8 +964,28 @@
     align-items: flex-start;
   }
 
+  .account-card {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+  }
+
   .session-actions {
     justify-content: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .account-card {
+    padding: var(--space-sm);
+  }
+
+  .account-card-title-row {
+    align-items: flex-start;
+  }
+
+  .account-card-detail {
+    white-space: normal;
+    overflow: visible;
   }
 }
 
@@ -844,6 +996,11 @@
   }
 
   .toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .bottom-bar {
     flex-direction: column;
     align-items: flex-start;
   }

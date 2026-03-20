@@ -8,6 +8,7 @@ clipods: a multi-session launcher for Codex CLI (Tauri + React). Default UI lang
 ## Core features
 
 - Multi-account sessions: each session has its own `CODEX_HOME` and login type (Official/API).
+- Reusable account pool: save Codex ChatGPT `auth.json`, Codex API keys, and Claude API credentials, then bind them to sessions.
 - Terminal & IDE profiles: define launch command and arguments per tool.
 - Import/Export: TOML config import/export for backup and sync.
 - One-click launch: open terminal/IDE and jump to the session directory (IDE launch prefers project path from `launchCommand --cd`, and injects session `CODEX_HOME` and env).
@@ -65,13 +66,13 @@ cat <CODEX_HOME>/.codex-global-state.json
 
 ## How to use
 
-1. Create a session: set name, `CODEX_HOME`, and login type.
-2. Terminal profile: enter app name or `.app` path (Terminal, iTerm2, `/Applications/Warp.app`); drag & drop supported.
-3. IDE profile: enter app name or `.app` path (VS Code, Cursor, `/Applications/Cursor.app`).
-4. Bind profiles: pick terminal/IDE for the session, then save.
-5. Import/Export: use the toolbar to import/export TOML.
-6. Session launch command: set `codex ...` command to run automatically on terminal launch.
-7. Codex.app: optionally enable multi-instance and session isolation for parallel logins.
+1. Create an account first: save reusable Codex ChatGPT `auth.json`, Codex API, or Claude API credentials in the Accounts tab.
+2. Create a session: set name, `CODEX_HOME` / `CLAUDE_HOME`, client, and login type.
+3. Bind account & profiles: choose a reusable account plus terminal/IDE for the session, then save.
+4. Import/Export: use the toolbar to import/export TOML.
+5. Session launch command: set `codex ...` or `claude ...` to run automatically on terminal launch.
+6. Codex.app: optionally enable multi-instance and session isolation for parallel logins.
+7. Official login: unbound Codex/Claude sessions prefer terminal-driven login flow (`codex` / `claude login`) with browser fallback.
 8. Help: the top-right “Help” shows first-run and update notes.
 
 ## Command & arguments
@@ -111,9 +112,9 @@ npm run tauri dev
 ## Config
 
 - Config is stored under Tauri `appConfigDir()`.
-- Sessions, terminals, IDEs are stored in TOML.
+- Sessions, reusable accounts, terminals, and IDEs are stored in TOML.
 - Saving a session or opening terminal writes Codex config to `CODEX_HOME/config.toml`.
-- API sessions write `CODEX_HOME/auth.json` with `OPENAI_API_KEY`.
+- Bound accounts are projected at launch time: Codex sessions receive `auth.json` / OpenAI env, while Claude API accounts map to `ANTHROPIC_*` env vars.
 
 ## Security notes (API key)
 

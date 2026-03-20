@@ -9,3 +9,4 @@
 | 2026-02-08-codex-config-ui.md | 方案 | Codex 配置与 UI 调整 |
 | 2026-02-09-release-builds.md | 方案 | Release 打包工作流实现计划 |
 | 2026-02-09-updater-ghostty-local-install.md | 方案 | Updater/终端模板/本地安装补充 |
+| 2026-03-19-multi-account-mvp.md | 方案 | 多账号池、会话绑定与 Codex/Claude 启动投影实现计划 |

@@ -5,7 +5,7 @@
 | 文件名 | 地位 | 功能 |
 |-------|------|------|
 | _README.md | 文档 | 根目录说明 |
-| README.md | 文档 | 项目说明、使用指南与规则 |
+| README.md | 文档 | 项目说明、使用指南与规则（含账号池/会话绑定说明） |
 | README.en.md | 文档 | English documentation |
 | CHANGELOG.md | 文档 | 版本变更记录与发布说明 |
 | package.json | 核心 | 前端依赖与脚本（含本地安装命令） |
@@ -18,6 +18,6 @@
 | src | 核心 | 前端源代码 |
 | src-tauri | 核心 | Tauri 后端与构建 |
 | public | 资源 | 静态资源 |
-| docs | 文档 | 项目文档 |
+| docs | 文档 | 项目文档（含多账号 MVP 实施计划） |
 | .vscode | 配置 | 编辑器配置 |
 | .gitignore | 配置 | Git 忽略规则（含本地配置排除） |

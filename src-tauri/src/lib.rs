@@ -1,6 +1,6 @@
 /*
- * @input  依赖：tauri, tauri_plugin_opener, tauri_plugin_shell, tauri_plugin_fs, tauri_plugin_dialog, tauri_plugin_updater, serde_json, open 启动参数, Wave wsh, Ghostty 参数兼容转换, IDE 启动环境注入
- * @output 导出：greet/launch_terminal/launch_ide/launch_codex_app/ensure_codex_home/ensure_codex_agents/ensure_codex_global_state/write_codex_config/write_codex_auth/check_codex_auth/check_app_installed/reveal_path 命令, run 启动函数（含 Wave 支持、Ghostty 兼容、IDE 环境注入与 CODEX_HOME 归一化）
+ * @input  依赖：tauri, tauri_plugin_opener, tauri_plugin_shell, tauri_plugin_fs, tauri_plugin_dialog, tauri_plugin_updater, serde_json, open 启动参数, Wave wsh, Ghostty 参数兼容转换, IDE 启动环境注入与新实例控制
+ * @output 导出：greet/launch_terminal/launch_ide/launch_codex_app/ensure_codex_home/ensure_codex_agents/ensure_codex_global_state/write_codex_config/read_codex_config/write_codex_auth/read_codex_auth/write_claude_settings/write_claude_json/check_codex_auth/check_app_installed/reveal_path 命令, run 启动函数（含 Wave 支持、Ghostty 兼容、IDE 环境注入/新实例控制与 CODEX_HOME 归一化）
  * @pos    Tauri 后端命令与启动入口（含会话运行时默认自愈、终端参数兼容与 IDE 隔离注入）
  *
  * ⚠️ 一旦本文件被更新，务必更新以上注释
@@ -12,6 +12,7 @@ use std::{
     fs,
     path::{Path, PathBuf},
     process::Command,
+    time::{SystemTime, UNIX_EPOCH},
 };
 use serde_json::{Map, Value};
 
@@ -58,7 +59,7 @@ fn launch_terminal(
         return launch_wave_terminal(&app_name, &command_line, &normalized_dir, args);
     }
     let is_ghostty = matches_ghostty_app(&app_name);
-    let mut open_args = vec!["-a".to_string(), app_name];
+    let mut open_args = build_terminal_open_args(&app_name, is_ghostty);
     if let Some(dir) = normalized_dir.as_ref() {
         if is_ghostty {
             // Ghostty on macOS does not accept opening a directory path via `open -a`.
@@ -84,20 +85,52 @@ fn launch_terminal(
     run_open(&open_args)
 }
 
+fn build_terminal_open_args(app_name: &str, is_ghostty: bool) -> Vec<String> {
+    let mut open_args = Vec::new();
+    if is_ghostty {
+        // `open -a Ghostty --args ...` may be ignored when Ghostty is already running.
+        // Force a fresh app launch so launch args always take effect.
+        open_args.push("-n".to_string());
+    }
+    open_args.push("-a".to_string());
+    open_args.push(app_name.to_string());
+    open_args
+}
+
 #[tauri::command]
 fn launch_ide(
     app: Option<String>,
     args: Option<Vec<String>>,
     target_path: Option<String>,
     env: Option<HashMap<String, String>>,
+    force_new_instance: Option<bool>,
 ) -> Result<(), String> {
+    let open_args = build_launch_ide_open_args(app, args, target_path, force_new_instance)?;
+    let env_map = env.unwrap_or_default();
+    run_open_with_env(&open_args, &env_map)
+}
+
+fn build_launch_ide_open_args(
+    app: Option<String>,
+    args: Option<Vec<String>>,
+    target_path: Option<String>,
+    force_new_instance: Option<bool>,
+) -> Result<Vec<String>, String> {
     let mut open_args: Vec<String> = Vec::new();
-    if let Some(app_name) = app {
-        let trimmed = app_name.trim().to_string();
-        if !trimmed.is_empty() {
-            open_args.push("-a".to_string());
-            open_args.push(trimmed);
+    let app_name = app.and_then(|value| {
+        let trimmed = value.trim().to_string();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
         }
+    });
+    if force_new_instance.unwrap_or(false) && app_name.is_some() {
+        open_args.push("-n".to_string());
+    }
+    if let Some(app_name) = app_name {
+        open_args.push("-a".to_string());
+        open_args.push(app_name);
     }
     if let Some(path) = target_path {
         let normalized = normalize_path(&path)?;
@@ -117,8 +150,7 @@ fn launch_ide(
     if open_args.is_empty() {
         return Err("launch_ide requires an app name or target path".to_string());
     }
-    let env_map = env.unwrap_or_default();
-    run_open_with_env(&open_args, &env_map)
+    Ok(open_args)
 }
 
 #[tauri::command]
@@ -278,6 +310,17 @@ fn write_codex_config(path: Option<String>, contents: String) -> Result<String, 
 }
 
 #[tauri::command]
+fn read_codex_config(path: Option<String>) -> Result<String, String> {
+    let fallback = "~/.codex".to_string();
+    let selected = path
+        .or_else(|| env::var("CODEX_HOME").ok())
+        .unwrap_or(fallback);
+    let resolved = normalize_path(&selected)?;
+    let target = resolved.join("config.toml");
+    fs::read_to_string(&target).map_err(|err| err.to_string())
+}
+
+#[tauri::command]
 fn write_codex_auth(path: Option<String>, contents: String) -> Result<String, String> {
     let fallback = "~/.codex".to_string();
     let selected = path
@@ -286,6 +329,39 @@ fn write_codex_auth(path: Option<String>, contents: String) -> Result<String, St
     let resolved = normalize_path(&selected)?;
     fs::create_dir_all(&resolved).map_err(|err| err.to_string())?;
     let target = resolved.join("auth.json");
+    fs::write(&target, contents).map_err(|err| err.to_string())?;
+    path_to_string(&target)
+}
+
+#[tauri::command]
+fn read_codex_auth(path: Option<String>) -> Result<String, String> {
+    let fallback = "~/.codex".to_string();
+    let selected = path
+        .or_else(|| env::var("CODEX_HOME").ok())
+        .unwrap_or(fallback);
+    let resolved = normalize_path(&selected)?;
+    let target = resolved.join("auth.json");
+    fs::read_to_string(&target).map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+fn write_claude_settings(path: Option<String>, contents: String) -> Result<String, String> {
+    let fallback = "~/.claude".to_string();
+    let selected = path.or_else(|| env::var("CLAUDE_CONFIG_DIR").ok()).unwrap_or(fallback);
+    let resolved = normalize_path(&selected)?;
+    fs::create_dir_all(&resolved).map_err(|err| err.to_string())?;
+    let target = resolved.join("settings.json");
+    fs::write(&target, contents).map_err(|err| err.to_string())?;
+    path_to_string(&target)
+}
+
+#[tauri::command]
+fn write_claude_json(path: Option<String>, contents: String) -> Result<String, String> {
+    let fallback = "~/.claude".to_string();
+    let selected = path.or_else(|| env::var("CLAUDE_CONFIG_DIR").ok()).unwrap_or(fallback);
+    let resolved = normalize_path(&selected)?;
+    fs::create_dir_all(&resolved).map_err(|err| err.to_string())?;
+    let target = resolved.join("claude.json");
     fs::write(&target, contents).map_err(|err| err.to_string())?;
     path_to_string(&target)
 }
@@ -484,9 +560,9 @@ fn normalize_ghostty_args(args: Vec<String>, command_line: &Option<String>) -> V
             if !cmd.is_empty() {
                 return vec![
                     "-e".to_string(),
-                    selected_shell,
+                    selected_shell.clone(),
                     "-lc".to_string(),
-                    cmd.to_string(),
+                    build_ghostty_command(cmd, &selected_shell),
                 ];
             }
         }
@@ -498,12 +574,27 @@ fn normalize_ghostty_args(args: Vec<String>, command_line: &Option<String>) -> V
             && args.get(2).map(|value| value == "-lc").unwrap_or(false);
     if is_shell_wrapped {
         let shell_arg = args.get(1).map(|value| value.trim()).unwrap_or_default();
+        let command_arg = args.get(3).map(|value| value.trim()).unwrap_or_default();
+        let wrapped_command = build_ghostty_command(command_arg, &selected_shell);
         if shell_arg.is_empty() || !Path::new(shell_arg).is_file() {
             return vec![
                 "-e".to_string(),
                 selected_shell,
                 "-lc".to_string(),
-                args.get(3).cloned().unwrap_or_default(),
+                wrapped_command,
+            ];
+        }
+        if command_line
+            .as_ref()
+            .map(|value| value.trim())
+            .map(|value| value == command_arg)
+            .unwrap_or(false)
+        {
+            return vec![
+                "-e".to_string(),
+                shell_arg.to_string(),
+                "-lc".to_string(),
+                build_ghostty_command(command_arg, shell_arg),
             ];
         }
         return args;
@@ -529,12 +620,24 @@ fn normalize_ghostty_args(args: Vec<String>, command_line: &Option<String>) -> V
     match command_value {
         Some(value) => vec![
             "-e".to_string(),
-            selected_shell,
+            selected_shell.clone(),
             "-lc".to_string(),
-            value,
+            build_ghostty_command(&value, &selected_shell),
         ],
         None => Vec::new(),
     }
+}
+
+fn build_ghostty_command(command: &str, shell: &str) -> String {
+    let trimmed = command.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+    format!(
+        "{}; __clipods_exit=$?; if [ $__clipods_exit -ne 0 ]; then echo \"[clipods] command exited with code $__clipods_exit\"; fi; exec {} -il",
+        trimmed,
+        shell_escape(shell)
+    )
 }
 
 fn select_available_shell() -> String {
@@ -550,6 +653,49 @@ fn select_available_shell() -> String {
         }
     }
     "/bin/sh".to_string()
+}
+
+fn create_temp_launch_script_path() -> Result<PathBuf, String> {
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|e| e.to_string())?
+        .as_millis();
+    let random: u32 = rand::random();
+    let filename = format!("clipods-ide-launch-{}-{}.sh", timestamp, random);
+    Ok(PathBuf::from("/tmp").join(filename))
+}
+
+fn build_launch_script(env: &HashMap<String, String>, open_args: &[String]) -> String {
+    let mut lines = vec!["#!/bin/bash".to_string()];
+
+    // 按字母顺序导出环境变量，确保一致性
+    let mut sorted_env: Vec<(&String, &String)> = env.iter().collect();
+    sorted_env.sort_by(|a, b| a.0.cmp(b.0));
+
+    for (key, value) in sorted_env {
+        if key.trim().is_empty() {
+            continue;
+        }
+        lines.push(format!("export {}={}", key.trim(), shell_escape(value.trim())));
+    }
+
+    // 构建 open 命令
+    let mut open_cmd = vec!["open".to_string()];
+    open_cmd.extend(open_args.iter().map(|arg| shell_escape(arg)));
+    lines.push(open_cmd.join(" "));
+
+    // 自我删除
+    lines.push("rm -f \"$0\"".to_string());
+
+    lines.join("\n")
+}
+
+fn run_launch_script(script_path: &Path) -> Result<(), String> {
+    Command::new("/bin/bash")
+        .arg(script_path)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 fn launch_terminal_script(app_name: &str, command_line: &Option<String>) -> Result<(), String> {
@@ -657,21 +803,27 @@ fn run_open_with_env(args: &[String], env: &HashMap<String, String>) -> Result<(
     if env.is_empty() {
         return run_open(args);
     }
-    let output = Command::new("open")
-        .args(args)
-        .envs(env.iter())
-        .output()
-        .map_err(|err| err.to_string())?;
-    if output.status.success() {
-        Ok(())
-    } else {
-        let message = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        if message.is_empty() {
-            Err(format!("open failed with status: {}", output.status))
-        } else {
-            Err(message)
-        }
+
+    // 使用临时脚本方案传递环境变量到 IDE
+    let script_path = create_temp_launch_script_path()?;
+    let script_content = build_launch_script(env, args);
+
+    // 写入脚本文件
+    fs::write(&script_path, script_content).map_err(|e| e.to_string())?;
+
+    // 设置可执行权限 (0o700 = rwx------)
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = fs::metadata(&script_path)
+            .map_err(|e| e.to_string())?
+            .permissions();
+        perms.set_mode(0o700);
+        fs::set_permissions(&script_path, perms).map_err(|e| e.to_string())?;
     }
+
+    // 执行脚本（异步执行，脚本会自我删除）
+    run_launch_script(&script_path)
 }
 
 #[cfg(not(target_os = "macos"))]
@@ -701,7 +853,11 @@ pub fn run() {
             ensure_codex_agents,
             ensure_codex_global_state,
             write_codex_config,
+            read_codex_config,
             write_codex_auth,
+            read_codex_auth,
+            write_claude_settings,
+            write_claude_json,
             check_codex_auth,
             check_app_installed,
             reveal_path
@@ -726,10 +882,12 @@ mod tests {
             normalized,
             vec![
                 "-e".to_string(),
-                shell,
+                shell.clone(),
                 "-lc".to_string(),
-                "cd '/tmp/demo'; export CODEX_HOME='/tmp/demo'; codex --cd /tmp/project"
-                    .to_string()
+                build_ghostty_command(
+                    "cd '/tmp/demo'; export CODEX_HOME='/tmp/demo'; codex --cd /tmp/project",
+                    &shell
+                )
             ]
         );
     }
@@ -747,9 +905,12 @@ mod tests {
             normalized,
             vec![
                 "-e".to_string(),
-                shell,
+                shell.clone(),
                 "-lc".to_string(),
-                "cd '/tmp/demo'; export A='1'; codex --cd /tmp/project".to_string()
+                build_ghostty_command(
+                    "cd '/tmp/demo'; export A='1'; codex --cd /tmp/project",
+                    &shell
+                )
             ]
         );
     }
@@ -768,10 +929,86 @@ mod tests {
             normalized,
             vec![
                 "-e".to_string(),
-                shell,
+                shell.clone(),
                 "-lc".to_string(),
-                "echo ok".to_string()
+                build_ghostty_command("echo ok", &shell)
             ]
         );
+    }
+
+    #[test]
+    fn ghostty_shell_wrapped_command_should_keep_shell_open_when_placeholder_used() {
+        let shell = select_available_shell();
+        let command = "echo ok";
+        let args = vec![
+            "-e".to_string(),
+            shell.clone(),
+            "-lc".to_string(),
+            command.to_string(),
+        ];
+        let command_line = Some(command.to_string());
+        let normalized = normalize_ghostty_args(args, &command_line);
+        assert_eq!(
+            normalized,
+            vec![
+                "-e".to_string(),
+                shell.clone(),
+                "-lc".to_string(),
+                build_ghostty_command(command, &shell)
+            ]
+        );
+    }
+
+    #[test]
+    fn ide_force_new_instance_should_include_dash_n() {
+        let args = build_launch_ide_open_args(
+            Some("Visual Studio Code".to_string()),
+            None,
+            None,
+            Some(true),
+        )
+        .expect("launch args should be built");
+        assert_eq!(
+            args,
+            vec![
+                "-n".to_string(),
+                "-a".to_string(),
+                "Visual Studio Code".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn ide_default_should_not_include_dash_n() {
+        let args = build_launch_ide_open_args(
+            Some("Visual Studio Code".to_string()),
+            None,
+            None,
+            None,
+        )
+        .expect("launch args should be built");
+        assert_eq!(
+            args,
+            vec!["-a".to_string(), "Visual Studio Code".to_string()]
+        );
+    }
+
+    #[test]
+    fn ghostty_open_args_should_force_new_instance() {
+        let args = build_terminal_open_args("Ghostty", true);
+        assert_eq!(
+            args,
+            vec![
+                "-n".to_string(),
+                "-a".to_string(),
+                "Ghostty".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn terminal_open_args_should_not_force_new_instance() {
+        let args = build_terminal_open_args("Terminal", false);
+        assert_eq!(args, vec!["-a".to_string(), "Terminal".to_string()]);
     }
 }
